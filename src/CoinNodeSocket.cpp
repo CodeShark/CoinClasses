@@ -38,6 +38,8 @@
 #include <errno.h>
 #include <pthread.h>
 
+#include <stdexcept>
+
 #define SOCKET_BUFFER_SIZE 16384
 #define MESSAGE_HEADER_SIZE 20
 #define COMMAND_SIZE 12
@@ -117,22 +119,22 @@ void messageLoop(void* param)
                     if (messageHandler) messageHandler(pNodeSocket, nodeMessage);
                 }
                 else
-                    throw "Checksum does not match payload for message of type.";
+                    throw runtime_error("Checksum does not match payload for message of type.");
 
                 // shift message frame over
                 message.assign(message.begin() + MESSAGE_HEADER_SIZE + checksumLength + payloadLength, message.end());
             }
-            catch (const char* error) {
+            catch (const exception& e) {
                 message.assign(message.begin() + MESSAGE_HEADER_SIZE + checksumLength + payloadLength, message.end());
 #ifdef __SHOW_EXCEPTIONS__
-                fprintf(stdout, "Exception: %s\n", error);
+                fprintf(stdout, "Exception: %s\n", e.what());
 #endif
             }
         }
     }
-    catch (const char* error) {
+    catch (const exception& e) {
 #ifdef __SHOW_EXCEPTIONS__
-        fprintf(stdout, "Exception: %s\n", error);
+        fprintf(stdout, "Exception: %s\n", e.what());
 #endif
     }
 }
@@ -149,11 +151,11 @@ CoinNodeSocket::CoinNodeSocket()
 
 void CoinNodeSocket::open(MessageProcessor callback, uint32_t magic, uint32_t version, const char* hostname, uint port)
 {
-    if (this->h_socket != -1) throw "Connection already open.";
+    if (this->h_socket != -1) throw runtime_error("Connection already open.");
 
     this->p_host = gethostbyname(hostname);
     if ((this->h_socket = socket(AF_INET, SOCK_STREAM, 0)) == -1)
-        throw "Error creating socket.";
+        throw runtime_error("Error creating socket.");
 
     serverAddress.sin_family = AF_INET;
     serverAddress.sin_port = htons(8333);
@@ -161,7 +163,7 @@ void CoinNodeSocket::open(MessageProcessor callback, uint32_t magic, uint32_t ve
     bzero(&(serverAddress.sin_zero), 8);
 
     if (connect(h_socket, (struct sockaddr*)&serverAddress, sizeof(struct sockaddr)) == -1)
-        throw "Error connecting to socket.";
+        throw runtime_error("Error connecting to socket.");
 
     this->messageProcessor = callback;
     this->coinMessageHandler = NULL;
@@ -179,16 +181,16 @@ void CoinNodeSocket::open(MessageProcessor callback, uint32_t magic, uint32_t ve
 #endif
     /*this->h_messageThread = *///CreateThread(messageLoop, &params);
     /*if (!this->h_messageThread)
-        throw "Error creating message thread.";*/
+        throw runtime_error("Error creating message thread.");*/
 }
 
 void CoinNodeSocket::open(CoinMessageHandler callback, uint32_t magic, uint version, const char* hostname, uint port)
 {
-    if (this->h_socket != -1) throw "Connection already open.";
+    if (this->h_socket != -1) throw runtime_error("Connection already open.");
 
     this->p_host = gethostbyname(hostname);
     if ((this->h_socket = socket(AF_INET, SOCK_STREAM, 0)) == -1)
-        throw "Error creating socket.";
+        throw runtime_error("Error creating socket.");
 
     serverAddress.sin_family = AF_INET;
     serverAddress.sin_port = htons(port);
@@ -196,7 +198,7 @@ void CoinNodeSocket::open(CoinMessageHandler callback, uint32_t magic, uint vers
     bzero(&(serverAddress.sin_zero), 8);
 
     if (connect(h_socket, (struct sockaddr*)&serverAddress, sizeof(struct sockaddr)) == -1)
-        throw "Error connecting to socket.";
+        throw runtime_error("Error connecting to socket.");
 
     this->messageProcessor = NULL;
     this->coinMessageHandler = callback;
@@ -214,7 +216,7 @@ void CoinNodeSocket::open(CoinMessageHandler callback, uint32_t magic, uint vers
 #endif
     /*this->h_messageThread = *///CreateThread(messageLoop, &params);
     /*if (!this->h_messageThread)
-        throw "Error creating message thread.";*/
+        throw runtime_error("Error creating message thread.");*/
 }
 
 void CoinNodeSocket::close()
@@ -249,7 +251,7 @@ void CoinNodeSocket::waitOnHandshakeComplete()
 
 void CoinNodeSocket::sendMessage(const CoinNodeMessage& message)
 {
-    if (this->h_socket == -1) throw "Socket is not open.";
+    if (this->h_socket == -1) throw runtime_error("Socket is not open.");
 
     vector<unsigned char> rawData = message.getSerialized();
 

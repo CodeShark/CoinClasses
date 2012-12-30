@@ -30,14 +30,13 @@
 #include <vector>
 #include <algorithm>
 #include <cstring>
+#include <stdexcept>
 
 //#define __NO_OPENSSL_FREE
 
 #ifdef __NO_OPENSSL_FREE
 #define OPENSSL_free free
 #endif
-
-using namespace std;
 
 class BigInt
 {
@@ -49,8 +48,8 @@ protected:
     void allocate()
     {
         this->autoclear = false;
-        if (!(this->bn = BN_new())) throw "BIGNUM allocation error.";
-        if (!(this->ctx = BN_CTX_new())) { BN_free(this->bn); throw "BIGNUM allocation error."; }
+        if (!(this->bn = BN_new())) throw std::runtime_error("BIGNUM allocation error.");
+        if (!(this->ctx = BN_CTX_new())) { BN_free(this->bn); throw std::runtime_error("BIGNUM allocation error."); }
     }
 
 public:
@@ -58,20 +57,20 @@ public:
     BigInt() { this->allocate(); }
     BigInt(const BigInt& bigint)
     {
-        if (!(this->bn = BN_dup(bigint.bn))) throw "BIGNUM allocation error.";
-        if (!(this->ctx = BN_CTX_new())) { BN_free(this->bn); throw "BIGNUM allocation error."; }
+        if (!(this->bn = BN_dup(bigint.bn))) throw std::runtime_error("BIGNUM allocation error.");
+        if (!(this->ctx = BN_CTX_new())) { BN_free(this->bn); throw std::runtime_error("BIGNUM allocation error."); }
     }
     BigInt(BN_ULONG num)
     {
         this->allocate();
         this->setWord(num);
     }
-    BigInt(const vector<unsigned char>& bytes, bool bigEndian = false)
+    BigInt(const std::vector<unsigned char>& bytes, bool bigEndian = false)
     {
         this->allocate();
         this->setBytes(bytes, bigEndian);
     }
-    BigInt(const string& inBase, unsigned int base, const char* alphabet)
+    BigInt(const std::string& inBase, unsigned int base, const char* alphabet)
     {
         this->allocate();
         this->setInBase(inBase, base, alphabet);
@@ -91,18 +90,18 @@ public:
     void clear() { if (this->bn) BN_clear(this->bn); }
 
     // Assignment operations
-    //BigInt& operator=(BN_ULONG rhs) { if (!BN_set_word(this->bn, rhs)) throw "BIGNUM Error."; return *this; }
+    //BigInt& operator=(BN_ULONG rhs) { if (!BN_set_word(this->bn, rhs)) throw std::runtime_error("BIGNUM Error."); return *this; }
 
     // Arithmetic Operations
-    BigInt& operator+=(const BigInt& rhs) { if (!BN_add(this->bn, this->bn, rhs.bn)) throw "BN_add error."; return *this; }
-    BigInt& operator-=(const BigInt& rhs) { if (!BN_sub(this->bn, this->bn, rhs.bn)) throw "BN_sub error."; return *this; }
-    BigInt& operator*=(const BigInt& rhs) { if (!BN_mul(this->bn, this->bn, rhs.bn, this->ctx)) throw "BN_mul rror."; return *this; }
-    BigInt& operator/=(const BigInt& rhs) { if (!BN_div(this->bn, NULL, this->bn, rhs.bn, this->ctx)) throw "BN_div error."; return *this; }
-    BigInt& operator%=(const BigInt& rhs) { if (!BN_div(NULL, this->bn, this->bn, rhs.bn, this->ctx)) throw "BN_div error."; return *this; }
+    BigInt& operator+=(const BigInt& rhs) { if (!BN_add(this->bn, this->bn, rhs.bn)) throw std::runtime_error("BN_add error."); return *this; }
+    BigInt& operator-=(const BigInt& rhs) { if (!BN_sub(this->bn, this->bn, rhs.bn)) throw std::runtime_error("BN_sub error."); return *this; }
+    BigInt& operator*=(const BigInt& rhs) { if (!BN_mul(this->bn, this->bn, rhs.bn, this->ctx)) throw std::runtime_error("BN_mul rror."); return *this; }
+    BigInt& operator/=(const BigInt& rhs) { if (!BN_div(this->bn, NULL, this->bn, rhs.bn, this->ctx)) throw std::runtime_error("BN_div error."); return *this; }
+    BigInt& operator%=(const BigInt& rhs) { if (!BN_div(NULL, this->bn, this->bn, rhs.bn, this->ctx)) throw std::runtime_error("BN_div error."); return *this; }
 
-    BigInt& operator+=(BN_ULONG rhs) { if (!BN_add_word(this->bn, rhs)) throw "BN_add_word error."; return *this; }
-    BigInt& operator-=(BN_ULONG rhs) { if (!BN_sub_word(this->bn, rhs)) throw "BN_sub_word error."; return *this; }
-    BigInt& operator*=(BN_ULONG rhs) { if (!BN_mul_word(this->bn, rhs)) throw "BN_mul_word error."; return *this; }
+    BigInt& operator+=(BN_ULONG rhs) { if (!BN_add_word(this->bn, rhs)) throw std::runtime_error("BN_add_word error."); return *this; }
+    BigInt& operator-=(BN_ULONG rhs) { if (!BN_sub_word(this->bn, rhs)) throw std::runtime_error("BN_sub_word error."); return *this; }
+    BigInt& operator*=(BN_ULONG rhs) { if (!BN_mul_word(this->bn, rhs)) throw std::runtime_error("BN_mul_word error."); return *this; }
     BigInt& operator/=(BN_ULONG rhs) { BN_div_word(this->bn, rhs); return *this; }
     BigInt& operator%=(BN_ULONG rhs) { this->setWord(BN_mod_word(this->bn, rhs)); return *this; }
 
@@ -127,46 +126,46 @@ public:
 
     // Accessor Methods
     BN_ULONG getWord() const { return BN_get_word(this->bn); }
-    void setWord(BN_ULONG num) { if (!BN_set_word(this->bn, num)) throw "BN_set_word error."; }
+    void setWord(BN_ULONG num) { if (!BN_set_word(this->bn, num)) throw std::runtime_error("BN_set_word error."); }
 
-    vector<unsigned char> getBytes(bool bigEndian = false) const
+    std::vector<unsigned char> getBytes(bool bigEndian = false) const
     {
-        vector<unsigned char> bytes;
+        std::vector<unsigned char> bytes;
         bytes.resize(BN_num_bytes(this->bn));
         BN_bn2bin(this->bn, &bytes[0]);
         if (bigEndian) reverse(bytes.begin(), bytes.end());
         return bytes;
     }
-    void setBytes(vector<unsigned char> bytes, bool bigEndian = false)
+    void setBytes(std::vector<unsigned char> bytes, bool bigEndian = false)
     {
         if (bigEndian) reverse(bytes.begin(), bytes.end());
         BN_bin2bn(&bytes[0], bytes.size(), this->bn);
     }
 
-    string getHex() const
+    std::string getHex() const
     {
         char* hex = BN_bn2hex(this->bn);
-        if (!hex) throw "BN_bn2hex error.";
-        string rval(hex);
+        if (!hex) throw std::runtime_error("BN_bn2hex error.");
+        std::string rval(hex);
         OPENSSL_free(hex);
         return rval;
     }
-    void SetHex(const string& hex) { BN_hex2bn(&this->bn, hex.c_str()); }
+    void SetHex(const std::string& hex) { BN_hex2bn(&this->bn, hex.c_str()); }
 
-    string getDec() const
+    std::string getDec() const
     {
         char* dec = BN_bn2dec(this->bn);
-        if (!dec) throw "BN_bn2dec error.";
-        string rval(dec);
+        if (!dec) throw std::runtime_error("BN_bn2dec error.");
+        std::string rval(dec);
         OPENSSL_free(dec);
         return rval;
     }
-    void setDec(const string& dec) { BN_dec2bn(&this->bn, dec.c_str()); }
+    void setDec(const std::string& dec) { BN_dec2bn(&this->bn, dec.c_str()); }
 
-    string getInBase(unsigned int base, const char* alphabet) const
+    std::string getInBase(unsigned int base, const char* alphabet) const
     {
         BigInt num = *this;
-        string inBase;
+        std::string inBase;
         do {
             inBase = alphabet[num % base] + inBase; // TODO: check whether this is most efficient structure manipulation
             num /= base;
@@ -174,7 +173,7 @@ public:
         return inBase;
     }
 
-    void setInBase(const string& inBase, unsigned int base, const char* alphabet)
+    void setInBase(const std::string& inBase, unsigned int base, const char* alphabet)
     {
         this->setWord(0);
         for (unsigned int i = 0; i < inBase.size(); i++) {

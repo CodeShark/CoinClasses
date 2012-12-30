@@ -164,7 +164,7 @@ uchar_vector VarInt::getSerialized() const
 void VarInt::setSerialized(const uchar_vector& bytes)
 {
     if (bytes.size() < MIN_VAR_INT_SIZE)
-        throw "Invalid data - VarInt too small.";
+        throw runtime_error("Invalid data - VarInt too small.");
 
     if (bytes[0] < 0xfd)
         this->value = bytes[0];
@@ -175,7 +175,7 @@ void VarInt::setSerialized(const uchar_vector& bytes)
     else if (bytes.size() >= 9)
         this->value = vch_to_uint<uint64_t>(uchar_vector(bytes.begin() + 1, bytes.begin() + 9), _BIG_ENDIAN);
     else
-        throw "Invalid data - VarInt length is wrong.";
+        throw runtime_error("Invalid data - VarInt length is wrong.");
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -201,7 +201,7 @@ void VarString::setSerialized(const uchar_vector& bytes)
 {
     VarInt length(bytes);
     if (bytes.size() < length.getSize() + length.value)
-        throw "Invalid data - VarString too small.";
+        throw runtime_error("Invalid data - VarString too small.");
 
     value = string(bytes.begin() + length.getSize(), bytes.begin() + length.getSize() + length.value);
 }
@@ -259,7 +259,7 @@ void NetworkAddress::set(uint64_t services, const unsigned char ipv6[], uint16_t
 void NetworkAddress::setSerialized(const uchar_vector& bytes)
 {
     if (bytes.size() < MIN_NETWORK_ADDRESS_SIZE)
-        throw "Invalid data - NetworkAddress too small.";
+        throw runtime_error("Invalid data - NetworkAddress too small.");
 
     uint pos = 0;
     this->hasTime = (bytes.size() >= 30);
@@ -338,7 +338,7 @@ uchar_vector MessageHeader::getSerialized() const
 void MessageHeader::setSerialized(const uchar_vector& bytes)
 {
     if (bytes.size() < MIN_MESSAGE_HEADER_SIZE)
-        throw "Invalid data - MessageHeader too small.";
+        throw runtime_error("Invalid data - MessageHeader too small.");
 
     this->magic = vch_to_uint<uint32_t>(bytes, _BIG_ENDIAN);
     uchar_vector(bytes.begin() + 4, bytes.begin() + 16).copyToArray((unsigned char*)this->command);
@@ -452,7 +452,7 @@ uint64_t CoinNodeMessage::getSize() const
 
 uchar_vector CoinNodeMessage::getSerialized() const
 {
-    if (!pPayload) throw "Message not initialized.";
+    if (!pPayload) throw runtime_error("Message not initialized.");
     uchar_vector rval = this->header.getSerialized();
     rval += this->pPayload->getSerialized();
     return rval;
@@ -468,7 +468,7 @@ void CoinNodeMessage::setSerialized(const uchar_vector& bytes)
             this->header.removeChecksum();
 */
     if (bytes.size() < header.getSize() + header.length)
-        throw "Invalid data - CoinNodeMessage too small.";
+        throw runtime_error("Invalid data - CoinNodeMessage too small.");
 
     if (pPayload) {
         delete pPayload;
@@ -529,7 +529,7 @@ void CoinNodeMessage::setSerialized(const uchar_vector& bytes)
 
 bool CoinNodeMessage::isChecksumValid() const
 {
-    if (!this->pPayload) throw "Message not initialized.";
+    if (!this->pPayload) throw runtime_error("Message not initialized.");
 
     if (!this->header.hasChecksum) return true;
 
@@ -607,7 +607,7 @@ uchar_vector VersionMessage::getSerialized() const
 void VersionMessage::setSerialized(const uchar_vector& bytes)
 {
     if (bytes.size() < MIN_VERSION_MESSAGE_SIZE)
-        throw "Invalid data - VersionMessage too small.";
+        throw runtime_error("Invalid data - VersionMessage too small.");
 
     this->version = vch_to_uint<uint32_t>(bytes, _BIG_ENDIAN);
     uint pos = 4;
@@ -624,7 +624,7 @@ void VersionMessage::setSerialized(const uchar_vector& bytes)
     this->subVersion = VarString(uchar_vector(bytes.begin() + pos, bytes.end()));
     pos += this->subVersion.getSize();
     if (bytes.size() < pos + 4)
-        throw "Invalid data - VersionMessage missing startHeight.";
+        throw runtime_error("Invalid data - VersionMessage missing startHeight.");
     this->startHeight = vch_to_uint<uint32_t>(uchar_vector(bytes.begin() + pos, bytes.begin() + pos + 4), _BIG_ENDIAN);
 }
 
@@ -668,7 +668,7 @@ uchar_vector AddrMessage::getSerialized() const
 void AddrMessage::setSerialized(const uchar_vector& bytes)
 {
     if (bytes.size() < MIN_ADDR_MESSAGE_SIZE)
-        throw "Invalid data - AddrMessage too small.";
+        throw runtime_error("Invalid data - AddrMessage too small.");
 
     addrList.clear();
 
@@ -719,7 +719,7 @@ uchar_vector InventoryItem::getSerialized() const
 void InventoryItem::setSerialized(const uchar_vector& bytes)
 {
     if (bytes.size() < MIN_INVENTORY_ITEM_SIZE)
-        throw "Invalid data - InventoryItem too small.";
+        throw runtime_error("Invalid data - InventoryItem too small.");
 
     this->itemType = vch_to_uint<uint32_t>(bytes, _BIG_ENDIAN);
     uchar_vector hashBytes(bytes.begin() + 4, bytes.begin() + 36);
@@ -761,7 +761,7 @@ void Inventory::setSerialized(const uchar_vector& bytes)
     VarInt count(bytes);
     uint pos = count.getSize();
     if (bytes.size() < pos + MIN_INVENTORY_ITEM_SIZE*count.value)
-        throw "Invalid data - Inventory too small.";
+        throw runtime_error("Invalid data - Inventory too small.");
 
     for (uint i = 0; i < count.value; i++) {
         uchar_vector field(bytes.begin() + pos, bytes.end());
@@ -811,7 +811,7 @@ void GetDataMessage::setSerialized(const uchar_vector& bytes)
     VarInt count(bytes);
     uint pos = count.getSize();
     if (bytes.size() < pos + MIN_INVENTORY_ITEM_SIZE*count.value)
-        throw "Invalid data - GetDataMessage too small.";
+        throw runtime_error("Invalid data - GetDataMessage too small.");
 
     for (uint i = 0; i < count.value; i++) {
         uchar_vector field(bytes.begin() + pos, bytes.end());
@@ -866,12 +866,12 @@ uchar_vector GetBlocksMessage::getSerialized() const
 void GetBlocksMessage::setSerialized(const uchar_vector& bytes)
 {
     if (bytes.size() < MIN_GET_BLOCKS_SIZE)
-        throw "Invalid data - GetBlocksMessage too small.";
+        throw runtime_error("Invalid data - GetBlocksMessage too small.");
 
     this->version = vch_to_uint<uint32_t>(bytes, _BIG_ENDIAN); uint pos = 4;
     VarInt count(uchar_vector(bytes.begin() + 4, bytes.end())); pos += count.getSize();
     if (bytes.size() < pos + 32*(count.value + 1))
-        throw "Invalid data - GetBlocksMessage has wrong length.";
+        throw runtime_error("Invalid data - GetBlocksMessage has wrong length.");
     this->blockLocatorHashes.clear();
     uchar_vector hash;
     for (uint i = 0; i < count.value; i++) {
@@ -926,11 +926,11 @@ uchar_vector GetHeadersMessage::getSerialized() const
 void GetHeadersMessage::setSerialized(const uchar_vector& bytes)
 {
     if (bytes.size() < MIN_GET_BLOCKS_SIZE)
-        throw "Invalid data - GetHeadersMessage too small.";
+        throw runtime_error("Invalid data - GetHeadersMessage too small.");
 
     VarInt count(uchar_vector(bytes.begin(), bytes.end())); uint pos = count.getSize();
     if (bytes.size() < pos + 32*(count.value + 1))
-        throw "Invalid data - GetHeadersMessage has wrong length.";
+        throw runtime_error("Invalid data - GetHeadersMessage has wrong length.");
     this->blockLocatorHashes.clear();
     uchar_vector hash;
     for (uint i = 0; i < count.value; i++) {
@@ -989,7 +989,7 @@ uchar_vector OutPoint::getSerialized() const
 void OutPoint::setSerialized(const uchar_vector& bytes)
 {
     if (bytes.size() < MIN_OUT_POINT_SIZE)
-        throw "Invalid data - OutPoint too small.";
+        throw runtime_error("Invalid data - OutPoint too small.");
 
     uchar_vector hashBytes(bytes.begin(), bytes.begin() + 32);
     hashBytes.reverse(); // to little endian
@@ -1046,14 +1046,14 @@ uchar_vector TxIn::getSerialized(bool includeScriptSigLength) const
 void TxIn::setSerialized(const uchar_vector& bytes)
 {
     if (bytes.size() < MIN_TX_IN_SIZE)
-        throw "Invalid data - TxIn too small.";
+        throw runtime_error("Invalid data - TxIn too small.");
 
     this->previousOut.setSerialized(bytes);
     VarInt scriptLength(uchar_vector(bytes.begin() + 36, bytes.end()));
     uint pos =  scriptLength.getSize() + 36;
     if (bytes.size() < pos + scriptLength.value) {
         cout << "TxIn: " << bytes.getHex() << endl;
-        throw "Invalid data - TxIn script length too small.";
+        throw runtime_error("Invalid data - TxIn script length too small.");
     }
 
     this->scriptSig.assign(bytes.begin() + pos, bytes.begin() + pos + scriptLength.value);
@@ -1136,13 +1136,13 @@ uchar_vector TxOut::getSerialized() const
 void TxOut::setSerialized(const uchar_vector& bytes)
 {
     if (bytes.size() < MIN_TX_OUT_SIZE)
-        throw "Invalid data - TxOut too small.";
+        throw runtime_error("Invalid data - TxOut too small.");
 
     this->value = vch_to_uint<uint64_t>(bytes, _BIG_ENDIAN);
     VarInt scriptLength(uchar_vector(bytes.begin() + 8, bytes.end()));
     uint pos = scriptLength.getSize() + 8;
     if (bytes.size() < pos + scriptLength.value)
-        throw "Invalid data - TxOut script length too small.";
+        throw runtime_error("Invalid data - TxOut script length too small.");
 
     this->scriptPubKey.assign(bytes.begin() + pos, bytes.begin() + pos + scriptLength.value);
 }
@@ -1251,7 +1251,7 @@ uchar_vector Transaction::getSerialized(bool includeScriptSigLength) const
 void Transaction::setSerialized(const uchar_vector& bytes)
 {
     if (bytes.size() < MIN_TRANSACTION_SIZE)
-        throw "Invalid data - Transaction too small.";
+        throw runtime_error("Invalid data - Transaction too small.");
 
     // version
     this->version = vch_to_uint<uint32_t>(uchar_vector(bytes.begin(), bytes.begin() + 4), _BIG_ENDIAN);
@@ -1278,7 +1278,7 @@ void Transaction::setSerialized(const uchar_vector& bytes)
     }
 
     if (bytes.size() < pos + 4)
-        throw "Invalid data - Transaction missing lockTime.";
+        throw runtime_error("Invalid data - Transaction missing lockTime.");
 
     // lock time
     this->lockTime = vch_to_uint<uint32_t>(uchar_vector(bytes.begin() + pos, bytes.begin() + pos + 4), _BIG_ENDIAN);
@@ -1343,7 +1343,7 @@ void Transaction::clearScriptSigs()
 void Transaction::setScriptSig(uint index, const uchar_vector& scriptSig)
 {
     if (index > inputs.size()-1)
-        throw "Index out of range.";
+        throw runtime_error("Index out of range.");
     inputs[index].scriptSig = scriptSig;
 }
 
@@ -1392,7 +1392,7 @@ uchar_vector CoinBlockHeader::getSerialized() const
 void CoinBlockHeader::setSerialized(const uchar_vector& bytes)
 {
     if (bytes.size() < MIN_COIN_BLOCK_HEADER_SIZE)
-        throw "Invalid data - CoinBlockHeader too small.";
+        throw runtime_error("Invalid data - CoinBlockHeader too small.");
 
     this->version = vch_to_uint<uint32_t>(bytes, _BIG_ENDIAN); uint pos = 4;
 
@@ -1464,7 +1464,7 @@ uchar_vector CoinBlock::getSerialized() const
 void CoinBlock::setSerialized(const uchar_vector& bytes)
 {
     if (bytes.size() < MIN_COIN_BLOCK_SIZE)
-        throw "Invalid data - CoinBlock too small.";
+        throw runtime_error("Invalid data - CoinBlock too small.");
 
     this->blockHeader.setSerialized(bytes);
     uint pos = MIN_COIN_BLOCK_HEADER_SIZE;
@@ -1474,7 +1474,7 @@ void CoinBlock::setSerialized(const uchar_vector& bytes)
         Transaction tx(uchar_vector(bytes.begin() + pos, bytes.end())); pos += tx.getSize();
         this->txs.push_back(tx);
         if (bytes.size() < pos)
-            throw "Invalid data - CoinBlock transactions exceed block size.";
+            throw runtime_error("Invalid data - CoinBlock transactions exceed block size.");
     }
 }
 
@@ -1557,7 +1557,7 @@ void HeadersMessage::setSerialized(const uchar_vector& bytes)
 {
     VarInt count(bytes);
     if (bytes.size() < count.getSize() + count.value*(MIN_COIN_BLOCK_HEADER_SIZE + 1))
-        throw "Invalid data - HeadersMessage too small.";
+        throw runtime_error("Invalid data - HeadersMessage too small.");
 
     uint pos = count.getSize();
     this->headers.clear();

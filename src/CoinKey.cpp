@@ -23,9 +23,9 @@
 
 #define EC_CURVE_NAME NID_secp256k1
 
-bool isValidCoinAddress(const string& address, unsigned int addressVersion)
+bool isValidCoinAddress(const std::string& address, unsigned int addressVersion)
 {
-    vector<unsigned char> keyHash;
+    std::vector<unsigned char> keyHash;
     unsigned int version;
     return (fromBase58Check(address, keyHash, version) &&
             (version == addressVersion) &&
@@ -260,7 +260,7 @@ uchar_vector CoinKey::getPublicKey() const
     return publicKey;
 }
 
-string CoinKey::getAddress() const
+std::string CoinKey::getAddress() const
 {
     return toBase58Check(ripemd160(sha256(this->getPublicKey())), this->addressVersion);
 }

@@ -45,14 +45,14 @@ enum {
 #define DEFAULT_ADDRESS_VERSION         0x00
 #define DEFAULT_WALLET_IMPORT_VERSION   0x80
 
-bool isValidCoinAddress(const string& address, unsigned int addressVersion = DEFAULT_ADDRESS_VERSION);
+bool isValidCoinAddress(const std::string& address, unsigned int addressVersion = DEFAULT_ADDRESS_VERSION);
 
 typedef struct ec_key_st EC_KEY;
 
-class CoinKeyError : public runtime_error
+class CoinKeyError : public std::runtime_error
 {
 public:
-    explicit CoinKeyError(const string& error) : runtime_error(error) { }
+    explicit CoinKeyError(const std::string& error) : runtime_error(error) { }
 };
 
 class CoinKey
@@ -84,7 +84,7 @@ public:
     bool setPublicKey(const uchar_vector& publicKey);
     uchar_vector getPublicKey() const;
 
-    string getAddress() const;
+    std::string getAddress() const;
 
     bool sign(const uchar_vector& digest, uchar_vector& signature);
     // create a compact signature (65 bytes), which allows reconstructing the used public key

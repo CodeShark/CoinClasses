@@ -32,21 +32,21 @@
 const char base58chars[] = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz";
 
 // unsecure versions, suitable for public keys
-inline unsigned int countLeading0s(const vector<unsigned char>& data)
+inline unsigned int countLeading0s(const std::vector<unsigned char>& data)
 {
 unsigned int i = 0;
     for (; (i < data.size()) && (data[i] == 0); i++);
     return i;
 }
 
-inline unsigned int countLeading0s(const string& numeral, char zeroSymbol)
+inline unsigned int countLeading0s(const std::string& numeral, char zeroSymbol)
 {
     unsigned int i = 0;
     for (; (i < numeral.size()) && (numeral[i] == zeroSymbol); i++);
     return i;
 }
 
-inline string toBase58Check(const vector<unsigned char>& payload, unsigned char version)
+inline std::string toBase58Check(const std::vector<unsigned char>& payload, unsigned char version)
 {
     uchar_vector data;
     data.push_back(version);                                        // prepend version byte
@@ -55,15 +55,15 @@ inline string toBase58Check(const vector<unsigned char>& payload, unsigned char 
     checksum.assign(checksum.begin(), checksum.begin() + 4);        // compute checksum
     data += checksum;                                               // append checksum
     BigInt bn(data);
-    string base58check = bn.getInBase(58, base58chars);             // convert to base58
-    string leading0s(countLeading0s(data), base58chars[0]);         // prepend leading 0's (1 in base58)
+    std::string base58check = bn.getInBase(58, base58chars);             // convert to base58
+    std::string leading0s(countLeading0s(data), base58chars[0]);         // prepend leading 0's (1 in base58)
     return leading0s + base58check;
 }
 
 // fromBase58Check() - gets payload and version from a base58check string.
 //    returns true if valid.
 //    returns false and does not modify parameters if invalid.
-inline bool fromBase58Check(const string& base58check, vector<unsigned char>& payload, unsigned int& version)
+inline bool fromBase58Check(const std::string& base58check, std::vector<unsigned char>& payload, unsigned int& version)
 {
     BigInt bn(base58check, 58, base58chars);                                // convert from base58
     uchar_vector bytes = bn.getBytes();
@@ -80,7 +80,7 @@ inline bool fromBase58Check(const string& base58check, vector<unsigned char>& pa
     return true;
 }
 
-inline bool isBase58CheckValid(const string& base58check)
+inline bool isBase58CheckValid(const std::string& base58check)
 {
     BigInt bn(base58check, 58, base58chars);                                // convert from base58
     uchar_vector bytes = bn.getBytes();
@@ -102,7 +102,7 @@ unsigned int countLeading0s(const uchar_vector_secure& data)
   return i;
 }
 
-unsigned int countLeading0s(const string_secure& numeral, char zeroSymbol)
+unsigned int countLeading0s(const std::string_secure& numeral, char zeroSymbol)
 {
   unsigned int i = 0;
   for (; (i < numeral.size()) && (numeral[i] == zeroSymbol); i++);

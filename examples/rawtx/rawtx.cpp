@@ -30,6 +30,7 @@
 
 #include <iostream>
 #include <sstream>
+#include <stdexcept>
 
 #include <boost/regex.hpp>
 
@@ -62,18 +63,16 @@ enum {
     NO_OUTPUTS_EXIT_CODE,
 };
 
-class RawTxException
+class RawTxException : public runtime_error
 {
 private:
-    unsigned int exitCode;
-    string description;
+    int exitCode;
 	
 public:
-    RawTxException(unsigned int _exitCode, const string& _description)
-        : exitCode(_exitCode), description(_description) { }
-	
-    unsigned int getExitCode() const { return exitCode; }
-    string getDescription() const { return description; }
+    RawTxException(int _exitCode, const char* _description)
+        : runtime_error(_description), exitCode(_exitCode) { }
+
+    int getExitCode() const { return exitCode; }
 };
 
 void DisplayHelp(const string& progName)
@@ -99,14 +98,20 @@ BasicInput GetInputFromCmd(int i, char* argv[])
         input.walletImport = argv[i];
     else if ((key.size() == 64) || (key.size() == 558))
         input.privKey = uchar_vector(argv[i]);
-    else
-    throw RawTxException(INVALID_KEY_EXIT_CODE, string("Invalid key: ") + argv[i]);
+    else {
+        string error("Invalid key: ");
+        error += argv[1];
+        throw RawTxException(INVALID_KEY_EXIT_CODE, error.c_str());
+    }
 	
     boost::regex rxOutPoint("^([0-9a-fA-F]{64}):([0-9]+)$");
     boost::match_results<string::const_iterator> point;
     string outPointStr = argv[i+1];
-    if (!boost::regex_search(outPointStr, point, rxOutPoint))
-    throw RawTxException(INVALID_CLAIM_EXIT_CODE, string("Invalid claim: ") + argv[i+1]);
+    if (!boost::regex_search(outPointStr, point, rxOutPoint)) {
+        string error("Invalid claim: ");
+        error += argv[i+1];
+        throw RawTxException(INVALID_CLAIM_EXIT_CODE, error.c_str());
+    }
 	
     input.outPoint = OutPoint(point[1], strtol(string(point[2]).c_str(), NULL, 10));
     input.sequence = 0xffffffff;
@@ -125,8 +130,11 @@ void ShowInputs(const vector<BasicInput> inputs)
 
 BasicOutput GetOutputFromCmd(int i, char* argv[])
 {
-    if (!isBase58CheckValid(argv[i]) || (argv[i][0] != '1'))
-        throw RawTxException(INVALID_ADDRESS_EXIT_CODE, string("Invalid address: ") + argv[i]);
+    if (!isBase58CheckValid(argv[i]) || (argv[i][0] != '1')) {
+        string error("Invalid address: ");
+        error += argv[i];
+        throw RawTxException(INVALID_ADDRESS_EXIT_CODE, error.c_str());
+    }
 	
     boost::regex rxBtcAmount("^([0-9]*)\\.{0,1}([0-9]+){0,8}$");
     boost::match_results<string::const_iterator> decimalParts;
@@ -180,8 +188,11 @@ int main(int argc, char* argv[])
                     outputs.push_back(GetOutputFromCmd(i + 1, argv));
                     i += 2;
                 }
-                else
-                    throw RawTxException(UNRECOGNIZED_PARAM_EXIT_CODE, string("Unrecognized parameter: ") + argv[i]);
+                else {
+                    string error("Unrecognized parameter: ");
+                    error += argv[i];
+                    throw RawTxException(UNRECOGNIZED_PARAM_EXIT_CODE, error.c_str());
+                }
             }
             if (inputs.size() == 0)
                 throw RawTxException(NO_INPUTS_EXIT_CODE, "Transaction needs at least one input.");
@@ -193,8 +204,8 @@ int main(int argc, char* argv[])
             return SUCCESS_EXIT_CODE;
         }
     }
-    catch (const RawTxException& exception) {
-        cout << jsonError(exception.getDescription()) << endl;
-        return exception.getExitCode();
+    catch (const RawTxException& e) {
+        cout << jsonError(e.what()) << endl;
+        return e.getExitCode();
     }
 }

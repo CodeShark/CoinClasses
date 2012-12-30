@@ -94,11 +94,8 @@ void coinMessageHandler(CoinNodeSocket* pNodeSocket, const CoinNodeMessage& mess
             }
         }
     }
-    catch (const std::string& error) {
-        std::cout << "Exception in coinMessageHandler(): " << error << std::endl;
-    }
-    catch (const char* error) {
-        std::cout << "Exception in coinMessageHandler(): " << error << std::endl;
+    catch (const std::exception& e) {
+        std::cout << "Exception in coinMessageHandler(): " << e.what() << std::endl;
     }
 }
 

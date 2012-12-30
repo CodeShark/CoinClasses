@@ -31,8 +31,8 @@
 using namespace Coin;
 
 Transaction CreateTransaction(
-    const vector<BasicInput>& claims,
-    const vector<BasicOutput>& payments,
+    const std::vector<BasicInput>& claims,
+    const std::vector<BasicOutput>& payments,
     uint32_t lockTime,
     uint8_t addressVersion
 )
@@ -53,9 +53,9 @@ Transaction CreateTransaction(
         uchar_vector toPubKeyHash;
         uint version;
         if (!fromBase58Check(payments[i].toAddress, toPubKeyHash, version))
-            throw "Invalid address checksum.";
+            throw std::runtime_error("Invalid address checksum.");
         if (version != addressVersion)
-        throw "Invalid address version.";
+        throw std::runtime_error("Invalid address version.");
 
         TxOut txout(payments[i].amount, prefix + toPubKeyHash + suffix);
         tx.addOutput(txout);
@@ -68,16 +68,16 @@ Transaction CreateTransaction(
     }
 
     // compute signature for each input
-    vector<uchar_vector> signatures;
-    vector<uchar_vector> pubKeys;
+    std::vector<uchar_vector> signatures;
+    std::vector<uchar_vector> pubKeys;
     for (uint i = 0; i < claims.size(); i++) {
         CoinKey key;
         if (claims[i].walletImport != "") {
             if (!key.setWalletImport(claims[i].walletImport))
-                throw "Invalid wallet import key.";
+                throw std::runtime_error("Invalid wallet import key.");
         }
         else if (!key.setPrivateKey(claims[i].privKey))
-            throw "Error setting private key.";
+            throw std::runtime_error("Error setting private key.");
 
         uchar_vector fromPubKey = key.getPublicKey();
         uchar_vector fromPubKeyHash = ripemd160(sha256(fromPubKey));
@@ -87,7 +87,7 @@ Transaction CreateTransaction(
 
         uchar_vector signature;
         if (!key.sign(tx.getHashWithAppendedCode(1), signature))
-            throw "Error trying to sign.";
+            throw std::runtime_error("Error trying to sign.");
 
         signatures.push_back(signature);
         pubKeys.push_back(fromPubKey);
@@ -108,7 +108,7 @@ Transaction CreateTransaction(
     return tx;
 }
 
-void SignTransaction(const vector<BasicInput>& claims, Transaction& tx)
+void SignTransaction(const std::vector<BasicInput>& claims, Transaction& tx)
 {
     uchar_vector prefix;
     prefix.push_back(0x76);
@@ -126,16 +126,16 @@ void SignTransaction(const vector<BasicInput>& claims, Transaction& tx)
         tx.addInput(txin);
     }
     // compute signature for each input
-    vector<uchar_vector> signatures;
-    vector<uchar_vector> pubKeys;
+    std::vector<uchar_vector> signatures;
+    std::vector<uchar_vector> pubKeys;
     for (uint i = 0; i < claims.size(); i++) {
         CoinKey key;
         if (claims[i].walletImport != "") {
             if (!key.setWalletImport(claims[i].walletImport))
-                throw "Invalid wallet import key.";
+                throw std::runtime_error("Invalid wallet import key.");
         }
         else if (!key.setPrivateKey(claims[i].privKey))
-            throw "Error setting private key.";
+            throw std::runtime_error("Error setting private key.");
 
         uchar_vector fromPubKey = key.getPublicKey();
         uchar_vector fromPubKeyHash = ripemd160(sha256(fromPubKey));
@@ -145,7 +145,7 @@ void SignTransaction(const vector<BasicInput>& claims, Transaction& tx)
 
         uchar_vector signature;
         if (!key.sign(tx.getHashWithAppendedCode(1), signature))
-            throw "Error trying to sign.";
+            throw std::runtime_error("Error trying to sign.");
 
         signatures.push_back(signature);
         pubKeys.push_back(fromPubKey);
