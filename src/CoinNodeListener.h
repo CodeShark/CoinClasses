@@ -35,24 +35,15 @@
 #define DEFAULT_PORT 8333
 const unsigned char DEFAULT_Ipv6[] = {0,0,0,0,0,0,0,0,0,0,255,255,127,0,0,1};
 
+uint64_t getRandomNonce64();
+void coinMessageHandler(CoinNodeSocket* pNodeSocket, const Coin::CoinNodeMessage& message);
+
 namespace Coin
 {
 
 class CoinNodeListener;
 typedef void (*CoinBlockHandler)(CoinBlock* pBlock, CoinNodeListener* pListener, void* pInstanceData);
 typedef void (*CoinTxHandler)(Transaction* pBlock, CoinNodeListener* pListener, void* pInstanceData);
-
-uint64_t getRandomNonce64()
-{
-    // TODO: Use better RNG
-    srand(time(NULL));
-    uint64_t nonce = 0;
-    for (uint i = 0; i < 4; i++) {
-        nonce <<= 8;
-        nonce |= rand() % 0xff;
-    }
-    return nonce;
-}
 
 class FullInstanceData
 {
@@ -64,40 +55,6 @@ public:
 	
     FullInstanceData() : coinBlockHandler(NULL), coinTxHandler(NULL), pListener(NULL), pInstanceData(NULL) { }
 };
-
-void coinMessageHandler(CoinNodeSocket* pNodeSocket, const CoinNodeMessage& message)
-{
-    FullInstanceData* pFullInstanceData = static_cast<FullInstanceData*>(pNodeSocket->pAppData);
-	
-    try {
-        if (std::string(message.getCommand()) == "version") {
-            VerackMessage verackMessage;
-            CoinNodeMessage msg(pNodeSocket->getMagic(), &verackMessage);
-            pNodeSocket->sendMessage(msg);
-        }
-        else if (std::string(message.getCommand()) == "inv") {
-            Inventory* pInventory = static_cast<Inventory*>(message.getPayload());
-            GetDataMessage getData(*pInventory);
-            CoinNodeMessage msg(pNodeSocket->getMagic(), &getData);
-            pNodeSocket->sendMessage(msg);
-        }
-        else if (std::string(message.getCommand()) == "tx") {
-            if (pFullInstanceData->coinTxHandler) {
-                Transaction* pTx = static_cast<Transaction*>(message.getPayload());
-                pFullInstanceData->coinTxHandler(pTx, pFullInstanceData->pListener, pFullInstanceData->pInstanceData);
-            }
-        }
-        else if (std::string(message.getCommand()) == "block") {
-            if (pFullInstanceData->coinBlockHandler) {
-                CoinBlock* pBlock = static_cast<CoinBlock*>(message.getPayload());
-                pFullInstanceData->coinBlockHandler(pBlock, pFullInstanceData->pListener, pFullInstanceData->pInstanceData);
-            }
-        }
-    }
-    catch (const std::exception& e) {
-        std::cout << "Exception in coinMessageHandler(): " << e.what() << std::endl;
-    }
-}
 
 class CoinNodeListener
 {

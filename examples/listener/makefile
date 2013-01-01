@@ -10,7 +10,8 @@ LIBS = \
 
 OBJS = \
 	obj/CoinNodeData.o \
-	obj/CoinNodeSocket.o
+	obj/CoinNodeSocket.o \
+	obj/CoinNodeListener.o
 
 all: listener
 
