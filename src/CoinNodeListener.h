@@ -141,6 +141,26 @@ public:
     void stop() { m_nodeSocket.close(); }
 	
     void sendMessage(const CoinNodeMessage& pMessage) { m_nodeSocket.sendMessage(pMessage); }
+    
+    void askForBlock(const std::string& hash)
+    {
+        InventoryItem block(MSG_BLOCK, uchar_vector(hash));
+        Inventory inv;
+        inv.addItem(block);
+        GetDataMessage getData(inv);
+        CoinNodeMessage msg(this->getMagic(), &getData);
+        this->sendMessage(msg);
+    }
+
+    void askForTx(const std::string& hash)
+    {
+        InventoryItem block(MSG_TX, uchar_vector(hash));
+        Inventory inv;
+        inv.addItem(block);
+        GetDataMessage getData(inv);
+        CoinNodeMessage msg(this->getMagic(), &getData);
+        this->sendMessage(msg);
+    }
 };
 
 }; // namespace Coin
