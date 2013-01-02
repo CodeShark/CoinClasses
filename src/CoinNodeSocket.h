@@ -15,7 +15,13 @@
 #include <string>
 #include <iostream>
 
+typedef struct hostent SHostent;
+typedef struct sockaddr_in SockaddrIn;
+
+namespace Coin {
+
 class CoinNodeSocket;
+class CoinNodeAbstractListener;
 
 typedef void (*MessageProcessor)(CoinNodeSocket* pNodeSocket, const unsigned char* command, const std::vector<unsigned char>& payload);
 typedef void (*CoinMessageHandler)(CoinNodeSocket* pNodeSocket, const Coin::CoinNodeMessage& message);
@@ -30,8 +36,8 @@ class CoinNodeSocket
 {
 private:
     int h_socket;
-    struct hostent* p_host;
-    struct sockaddr_in serverAddress;
+    SHostent* p_host;
+    SockaddrIn serverAddress;
     uint32_t m_magic;
     uchar_vector m_magicBytes;
     uint32_t m_version;
@@ -45,6 +51,7 @@ private:
 
 public:
     void* pAppData;
+    CoinNodeAbstractListener* pListener;
 
     pthread_mutex_t m_handshakeLock;
     pthread_cond_t m_handshakeComplete;
@@ -83,4 +90,5 @@ public:
     void sendMessage(const Coin::CoinNodeMessage& pMessage);
 };
 
+}; // namespace Coin
 #endif

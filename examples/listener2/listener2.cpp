@@ -1,6 +1,6 @@
 ///////////////////////////////////////////////////////////////////////////////
 //
-// listener.cpp
+// listener2.cpp
 //
 // Copyright (c) 2011-2013 Eric Lombrozo
 //
@@ -22,7 +22,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
 
-#include <CoinNodeListener.h>
+#include <CoinNodeAbstractListener.h>
 
 #include <iostream>
 
@@ -38,20 +38,30 @@ namespace listener_network
     const uint8_t MULTISIG_ADDRESS_VERSION = 0x05;
 };
 
-void onBlock(CoinBlock* pBlock, CoinNodeListener* pListener, void* pInstanceData)
+class SimpleListener : public CoinNodeAbstractListener
+{
+public:
+    SimpleListener(const string& hostname, uint16_t port)
+        : CoinNodeAbstractListener(listener_network::MAGIC_BYTES, listener_network::PROTOCOL_VERSION, hostname, port) { }
+        
+    virtual void onBlock(CoinBlock& block);
+    virtual void onTx(Transaction& tx);
+};
+
+void SimpleListener::onBlock(CoinBlock& block)
 {
     cout << "-----------------------------------------------------------------------------" << endl
-         << "--New Block: " << pBlock->blockHeader.getHashLittleEndian().getHex() << endl
+         << "--New Block: " << block.blockHeader.getHashLittleEndian().getHex() << endl
          << "-----------------------------------------------------------------------------" << endl
-         << pBlock->toIndentedString() << endl << endl;
+         << block.toIndentedString() << endl << endl;
 }
 
-void onTx(Transaction* pTx, CoinNodeListener* pListener, void* pInstanceData)
+void SimpleListener::onTx(Transaction& tx)
 {
     cout << "--------------------------------------------------------------------------" << endl
-         << "--New Tx: " << pTx->getHashLittleEndian().getHex() << endl
+         << "--New Tx: " << tx.getHashLittleEndian().getHex() << endl
          << "--------------------------------------------------------------------------" << endl
-         << pTx->toIndentedString() << endl << endl;
+         << tx.toIndentedString() << endl << endl;
 }
 
 int main(int argc, char* argv[])
@@ -66,12 +76,9 @@ int main(int argc, char* argv[])
     SetMultiSigAddressVersion(listener_network::MULTISIG_ADDRESS_VERSION);
 	
     uint32_t port = strtoul(argv[2], NULL, 0);
-    CoinNodeListener listener(listener_network::MAGIC_BYTES, argv[1], DEFAULT_Ipv6, port, DEFAULT_Ipv6, listener_network::PROTOCOL_VERSION);
+    SimpleListener listener(argv[1], port);
     try
     {
-        listener.setInstanceData(NULL);
-        listener.setBlockHandler(onBlock);
-        listener.setTxHandler(onTx);
         cout << "Starting listener..." << flush;
         listener.start();
         cout << "started." << endl << endl;	

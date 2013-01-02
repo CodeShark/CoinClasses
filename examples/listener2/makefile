@@ -1,0 +1,32 @@
+SHELL=/bin/bash
+
+SRC_PATH=../../src
+
+LIBS = \
+	-l pthread \
+	-l ssl \
+	-l crypto \
+	-l boost_regex
+
+OBJS = \
+	obj/CoinNodeData.o \
+	obj/CoinNodeSocket.o \
+	obj/CoinNodeAbstractListener.o
+
+all: listener2
+
+$(SRC_PATH)/obj/%.o: $(SRC_PATH)/%.cpp
+	$(CXX) -c -o $@ $< \
+	-I$(SRC_PATH)
+
+listener2: $(OBJS:obj/%=$(SRC_PATH)/obj/%)
+	$(CXX) -o $@ listener2.cpp $^ \
+	-I$(SRC_PATH) \
+	$(LIBS)
+
+clean:
+	-rm -f listener2
+
+clean-all:
+	-rm -f listener2
+	-rm -f $(SRC_PATH)/obj/*.o

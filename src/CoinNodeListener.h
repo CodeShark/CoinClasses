@@ -36,7 +36,7 @@
 const unsigned char DEFAULT_Ipv6[] = {0,0,0,0,0,0,0,0,0,0,255,255,127,0,0,1};
 
 uint64_t getRandomNonce64();
-void coinMessageHandler(CoinNodeSocket* pNodeSocket, const Coin::CoinNodeMessage& message);
+void coinMessageHandler(Coin::CoinNodeSocket* pNodeSocket, const Coin::CoinNodeMessage& message);
 
 namespace Coin
 {
