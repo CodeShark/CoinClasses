@@ -41,7 +41,7 @@ namespace listener_network
 void onBlock(CoinBlock* pBlock, CoinNodeListener* pListener, void* pInstanceData)
 {
     cout << "-----------------------------------------------------------------------------" << endl
-         << "--New Block: " << pBlock->getHashLittleEndian().getHex() << endl
+         << "--New Block: " << pBlock->blockHeader.getHashLittleEndian().getHex() << endl
          << "-----------------------------------------------------------------------------" << endl
          << pBlock->toIndentedString() << endl << endl;
 }
