@@ -48,6 +48,28 @@
 using namespace Coin;
 using namespace std;
 
+// MessageHandlerParams and messageHandlerThread are enabling multithreaded callbacks.
+// With multithreaded callbacks enabled, messageLoop() will not wait for the messageHandler to return
+// before reading more from the socket. It is then up to the callback implementor to ensure the callback
+// is thread-safe.
+
+struct MessageHandlerParams
+{
+    CoinNodeSocket* pNodeSocket;
+    CoinNodeMessage* pNodeMessage;
+    
+    MessageHandlerParams(CoinNodeSocket* _pNodeSocket, CoinNodeMessage* _pNodeMessage)
+        : pNodeSocket(_pNodeSocket), pNodeMessage(_pNodeMessage) { }
+};
+
+void messageHandlerThread(void* pParams)
+{
+    MessageHandlerParams* pHandlerParams = (MessageHandlerParams*)pParams;
+    CoinMessageHandler messageHandler = pHandlerParams->pNodeSocket->getMessageHandler();
+    messageHandler(pHandlerParams->pNodeSocket, *(pHandlerParams->pNodeMessage));
+    delete pHandlerParams;
+}
+
 void messageLoop(void* param)
 {
     try {
@@ -115,7 +137,20 @@ void messageLoop(void* param)
                         pthread_cond_signal(&pNodeSocket->m_handshakeComplete);
 
                     // send the message to callback function.
-                    if (messageHandler) messageHandler(pNodeSocket, nodeMessage);
+                    if (messageHandler) {
+                        if (pNodeSocket->isMultithreaded()) {
+                            // messageHandlerThread deallocates the pParams structure.
+                            MessageHandlerParams* pParams = new MessageHandlerParams(pNodeSocket, &nodeMessage);
+                            int nErr = pthread_create(&pNodeSocket->h_lastCallbackThread, NULL, (void*(*)(void*))messageHandlerThread, pParams);
+#ifdef __DEBUG_OUT__
+                            if (nErr != 0)
+                                fprintf(stdout, "CoinNodeSocket::open() - pthread_create returned error code %d.\n", nErr);
+#endif
+                        }
+                        else {
+                            messageHandler(pNodeSocket, nodeMessage);
+                        }
+                    }
                 }
                 else
                     throw runtime_error("Checksum does not match payload for message of type.");
@@ -147,6 +182,7 @@ CoinNodeSocket::CoinNodeSocket()
     pthread_mutex_init(&this->m_updateAppDataLock, NULL);
     pthread_cond_init(&this->m_handshakeComplete, NULL);
     this->m_multithreaded = false;
+    this->h_lastCallbackThread = 0;
 }
 
 void CoinNodeSocket::open(CoinMessageHandler callback, uint32_t magic, uint version, const char* hostname, uint port)

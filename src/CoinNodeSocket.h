@@ -50,11 +50,14 @@ public:
     pthread_mutex_t m_handshakeLock;
     pthread_cond_t m_handshakeComplete;
     pthread_mutex_t m_updateAppDataLock;
+    
+    pthread_t h_lastCallbackThread;
 
     CoinNodeSocket();
     ~CoinNodeSocket() { this->close(); }
 
     void setMultithreaded(bool m_multithreaded) { this->m_multithreaded = m_multithreaded; }
+    bool isMultithreaded() const { return this->m_multithreaded; }
 
     int getSocketHandle() const { return h_socket; }
     uchar_vector getMagicBytes() const { return m_magicBytes; }
