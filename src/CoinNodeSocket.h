@@ -23,14 +23,7 @@ namespace Coin {
 class CoinNodeSocket;
 class CoinNodeAbstractListener;
 
-typedef void (*MessageProcessor)(CoinNodeSocket* pNodeSocket, const unsigned char* command, const std::vector<unsigned char>& payload);
 typedef void (*CoinMessageHandler)(CoinNodeSocket* pNodeSocket, const Coin::CoinNodeMessage& message);
-
-struct LoopParams
-{
-    int h_socket;
-    MessageProcessor messageProcessor;
-};
 
 class CoinNodeSocket
 {
@@ -44,10 +37,11 @@ private:
     std::string m_hostname;
     uint m_port;
 
-    MessageProcessor messageProcessor;
     CoinMessageHandler coinMessageHandler;
     pthread_t h_messageThread;
     pthread_mutex_t m_sendLock;
+    
+    bool m_multithreaded;
 
 public:
     void* pAppData;
@@ -60,16 +54,16 @@ public:
     CoinNodeSocket();
     ~CoinNodeSocket() { this->close(); }
 
+    void setMultithreaded(bool m_multithreaded) { this->m_multithreaded = m_multithreaded; }
+
     int getSocketHandle() const { return h_socket; }
     uchar_vector getMagicBytes() const { return m_magicBytes; }
     uint32_t getMagic() const { return m_magic; }
     uint getVersion() const { return m_version; }
     std::string getHostname() const { return m_hostname; }
     uint getPort() const { return m_port; }
-    MessageProcessor getMessageProcessor() const { return messageProcessor; }
     CoinMessageHandler getMessageHandler() const { return coinMessageHandler; }
 
-    void open(MessageProcessor callback, uint32_t magic, uint32_t version, const char* hostname = "127.0.0.1", uint port = 8333);
     void open(CoinMessageHandler callback, uint32_t magic, uint32_t version, const char* hostname = "127.0.0.1", uint port = 8333);
     void close();
 

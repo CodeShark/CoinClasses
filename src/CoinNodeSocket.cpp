@@ -38,6 +38,7 @@
 #include <errno.h>
 #include <pthread.h>
 
+#include <sstream>
 #include <stdexcept>
 
 #define SOCKET_BUFFER_SIZE 16384
@@ -60,7 +61,6 @@ void messageLoop(void* param)
         fprintf(stdout, "Magic Bytes: %s\n", magicBytes.getHex().c_str());
 #endif
         int h_socket = pNodeSocket->getSocketHandle();
-        MessageProcessor messageProcessor = pNodeSocket->getMessageProcessor();
         CoinMessageHandler messageHandler = pNodeSocket->getMessageHandler();
         unsigned char command[12];
         uchar_vector payload;
@@ -114,8 +114,7 @@ void messageLoop(void* param)
                     if (string((char*)command) == "verack")
                         pthread_cond_signal(&pNodeSocket->m_handshakeComplete);
 
-                    // send the message to be processed.
-                    if (messageProcessor) messageProcessor(pNodeSocket, command, payload);
+                    // send the message to callback function.
                     if (messageHandler) messageHandler(pNodeSocket, nodeMessage);
                 }
                 else
@@ -147,41 +146,7 @@ CoinNodeSocket::CoinNodeSocket()
     pthread_mutex_init(&this->m_handshakeLock, NULL);
     pthread_mutex_init(&this->m_updateAppDataLock, NULL);
     pthread_cond_init(&this->m_handshakeComplete, NULL);
-}
-
-void CoinNodeSocket::open(MessageProcessor callback, uint32_t magic, uint32_t version, const char* hostname, uint port)
-{
-    if (this->h_socket != -1) throw runtime_error("Connection already open.");
-
-    this->p_host = gethostbyname(hostname);
-    if ((this->h_socket = socket(AF_INET, SOCK_STREAM, 0)) == -1)
-        throw runtime_error("Error creating socket.");
-
-    serverAddress.sin_family = AF_INET;
-    serverAddress.sin_port = htons(8333);
-    serverAddress.sin_addr = *((struct in_addr*)this->p_host->h_addr);
-    bzero(&(serverAddress.sin_zero), 8);
-
-    if (connect(h_socket, (struct sockaddr*)&serverAddress, sizeof(struct sockaddr)) == -1)
-        throw runtime_error("Error connecting to socket.");
-
-    this->messageProcessor = callback;
-    this->coinMessageHandler = NULL;
-    this->m_magic = magic;
-    this->m_magicBytes = uint_to_vch(magic, _BIG_ENDIAN);
-    this->m_version = version;
-    this->m_hostname = hostname;
-    this->m_port = port;
-
-    this->h_messageThread = 0;
-    int ret = pthread_create(&this->h_messageThread, NULL, (void*(*)(void*))messageLoop, this);
-
-#ifdef __DEBUG_OUT__
-    fprintf(stdout, "opened with magic bytes: %s\n", this->m_magicBytes.getHex().c_str());
-#endif
-    /*this->h_messageThread = *///CreateThread(messageLoop, &params);
-    /*if (!this->h_messageThread)
-        throw runtime_error("Error creating message thread.");*/
+    this->m_multithreaded = false;
 }
 
 void CoinNodeSocket::open(CoinMessageHandler callback, uint32_t magic, uint version, const char* hostname, uint port)
@@ -200,7 +165,6 @@ void CoinNodeSocket::open(CoinMessageHandler callback, uint32_t magic, uint vers
     if (connect(h_socket, (struct sockaddr*)&serverAddress, sizeof(struct sockaddr)) == -1)
         throw runtime_error("Error connecting to socket.");
 
-    this->messageProcessor = NULL;
     this->coinMessageHandler = callback;
     this->m_magic = magic;
     this->m_magicBytes = uint_to_vch(magic, _BIG_ENDIAN);
@@ -210,6 +174,11 @@ void CoinNodeSocket::open(CoinMessageHandler callback, uint32_t magic, uint vers
 
     this->h_messageThread = 0;
     int ret = pthread_create(&this->h_messageThread, NULL, (void*(*)(void*))messageLoop, this);
+    if (ret != 0) {
+        stringstream ss;
+        ss << "CoinNodeSocket::open() - pthread_create returned error code " << ret << ".";
+        throw runtime_error(ss.str().c_str());
+    }
 
 #ifdef __DEBUG_OUT__
     fprintf(stdout, "opened with magic bytes: %s\n", this->m_magicBytes.getHex().c_str());
