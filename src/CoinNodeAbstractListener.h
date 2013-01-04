@@ -27,6 +27,7 @@
 
 #include "CoinNodeSocket.h"
 
+#include <pthread.h>
 
 namespace Coin
 {
@@ -46,21 +47,31 @@ protected:
  
     NetworkAddress m_peerAddress;
     NetworkAddress m_listenerAddress;
+    
+    bool m_syncMessages;
+    pthread_mutex_t m_handlerLock;
 	
 public:
-    CoinNodeAbstractListener(uint32_t magic, uint32_t version, const std::string& peerHostname, uint16_t port,
+    // set syncMessages to false to allow subclass to handle thread synchronization itself.
+    CoinNodeAbstractListener(uint32_t magic, uint32_t version, const std::string& peerHostname, uint16_t port, bool syncMessages = true,
         const unsigned char* peerIpAddress = DEFAULT_Ipv6, const unsigned char* listenerIpAddress = DEFAULT_Ipv6) :
         m_magic(magic),
         m_peerHostname(peerHostname),
         m_port(port),
-        m_version(version)
+        m_version(version),
+        m_syncMessages(syncMessages)
     {
         m_listenerAddress.set(NODE_NETWORK, listenerIpAddress, port);
         m_peerAddress.set(NODE_NETWORK, peerIpAddress, port);
         m_nodeSocket.pListener = this;
+        if (m_syncMessages)
+            pthread_mutex_init(&this->m_handlerLock, NULL);
     }
 	
     virtual ~CoinNodeAbstractListener() { this->stop(); }
+    
+    virtual int lockHandler() { return (m_syncMessages ? pthread_mutex_lock(&m_handlerLock) : 0); }
+    virtual int unlockHandler() { return (m_syncMessages ? pthread_mutex_unlock(&m_handlerLock) : 0); }
 		
     uint32_t getMagic() const { return m_magic; }
     uint32_t getVersion() const { return m_version; }

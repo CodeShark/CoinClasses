@@ -54,7 +54,7 @@ public:
     pthread_t h_lastCallbackThread;
 
     CoinNodeSocket();
-    ~CoinNodeSocket() { this->close(); }
+    ~CoinNodeSocket() { this->close(); } // TODO: wait on messageHandler threads.
 
     void setMultithreaded(bool m_multithreaded) { this->m_multithreaded = m_multithreaded; }
     bool isMultithreaded() const { return this->m_multithreaded; }

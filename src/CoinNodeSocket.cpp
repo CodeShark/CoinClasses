@@ -56,17 +56,17 @@ using namespace std;
 struct MessageHandlerParams
 {
     CoinNodeSocket* pNodeSocket;
-    CoinNodeMessage* pNodeMessage;
+    CoinNodeMessage nodeMessage;
     
-    MessageHandlerParams(CoinNodeSocket* _pNodeSocket, CoinNodeMessage* _pNodeMessage)
-        : pNodeSocket(_pNodeSocket), pNodeMessage(_pNodeMessage) { }
+    MessageHandlerParams(CoinNodeSocket* _pNodeSocket, const CoinNodeMessage& _nodeMessage)
+        : pNodeSocket(_pNodeSocket), nodeMessage(_nodeMessage) { }
 };
 
 void messageHandlerThread(void* pParams)
 {
     MessageHandlerParams* pHandlerParams = (MessageHandlerParams*)pParams;
     CoinMessageHandler messageHandler = pHandlerParams->pNodeSocket->getMessageHandler();
-    messageHandler(pHandlerParams->pNodeSocket, *(pHandlerParams->pNodeMessage));
+    messageHandler(pHandlerParams->pNodeSocket, pHandlerParams->nodeMessage);
     delete pHandlerParams;
 }
 
@@ -140,7 +140,7 @@ void messageLoop(void* param)
                     if (messageHandler) {
                         if (pNodeSocket->isMultithreaded()) {
                             // messageHandlerThread deallocates the pParams structure.
-                            MessageHandlerParams* pParams = new MessageHandlerParams(pNodeSocket, &nodeMessage);
+                            MessageHandlerParams* pParams = new MessageHandlerParams(pNodeSocket, nodeMessage);
                             int nErr = pthread_create(&pNodeSocket->h_lastCallbackThread, NULL, (void*(*)(void*))messageHandlerThread, pParams);
 #ifdef __DEBUG_OUT__
                             if (nErr != 0)

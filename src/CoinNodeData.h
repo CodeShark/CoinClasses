@@ -213,6 +213,7 @@ public:
     CoinNodeStructure* pPayload;
 
 public:
+    CoinNodeMessage(const CoinNodeMessage& message) { this->setMessage(message.header.magic, message.pPayload); }
     CoinNodeMessage(uint32_t magic, CoinNodeStructure* pPayload) { this->setMessage(magic, pPayload); }
     CoinNodeMessage(const uchar_vector& bytes) { this->pPayload = NULL; this->setSerialized(bytes); }
     ~CoinNodeMessage();

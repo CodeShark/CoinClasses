@@ -39,39 +39,44 @@ uint64_t getRandomNonce64()
 }
 
 void coinMessageHandler(CoinNodeSocket* pNodeSocket, const CoinNodeMessage& message)
-{	
+{
+    std::string command = message.getCommand();
+    
+    if (command == "tx" || command == "block")
+        pNodeSocket->pListener->lockHandler();
+
     try {
-        if (std::string(message.getCommand()) == "version") {
+        if (command == "version") {
             VerackMessage verackMessage;
             CoinNodeMessage msg(pNodeSocket->getMagic(), &verackMessage);
             pNodeSocket->sendMessage(msg);
         }
-        else if (std::string(message.getCommand()) == "inv") {
+        else if (command == "inv") {
             Inventory* pInventory = static_cast<Inventory*>(message.getPayload());
             GetDataMessage getData(*pInventory);
             CoinNodeMessage msg(pNodeSocket->getMagic(), &getData);
             pNodeSocket->sendMessage(msg);
         }
-        else if (std::string(message.getCommand()) == "tx") {
-            if (pNodeSocket->pListener) {
-                Transaction* pTx = static_cast<Transaction*>(message.getPayload());
-                pNodeSocket->pListener->onTx(*pTx);
-            }
+        else if (command == "tx") {
+            Transaction* pTx = static_cast<Transaction*>(message.getPayload());
+            pNodeSocket->pListener->onTx(*pTx);
         }
-        else if (std::string(message.getCommand()) == "block") {
-            if (pNodeSocket->pListener) {
-                CoinBlock* pBlock = static_cast<CoinBlock*>(message.getPayload());
-                pNodeSocket->pListener->onBlock(*pBlock);
-            }
+        else if (command == "block") {
+            CoinBlock* pBlock = static_cast<CoinBlock*>(message.getPayload());
+            pNodeSocket->pListener->onBlock(*pBlock);
         }
     }
     catch (const std::exception& e) {
         std::cout << "Exception in coinMessageHandler(): " << e.what() << std::endl;
     }
+
+    if (command == "tx" || command == "block")
+        pNodeSocket->pListener->unlockHandler();
 }
 
 void CoinNodeAbstractListener::start()
 {
+    m_nodeSocket.setMultithreaded(true);
     m_nodeSocket.open(coinMessageHandler, m_magic, m_version, m_peerHostname.c_str(), m_port);
     m_nodeSocket.doHandshake(m_version, NODE_NETWORK, time(NULL), m_peerAddress, m_listenerAddress, getRandomNonce64(), "", 0);
     m_nodeSocket.waitOnHandshakeComplete();
