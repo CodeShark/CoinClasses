@@ -53,7 +53,7 @@ protected:
 	
 public:
     // set syncMessages to false to allow subclass to handle thread synchronization itself.
-    CoinNodeAbstractListener(uint32_t magic, uint32_t version, const std::string& peerHostname, uint16_t port, bool syncMessages = true,
+    CoinNodeAbstractListener(uint32_t magic, uint32_t version, const std::string& peerHostname, uint16_t port, bool syncMessages = false,
         const unsigned char* peerIpAddress = DEFAULT_Ipv6, const unsigned char* listenerIpAddress = DEFAULT_Ipv6) :
         m_magic(magic),
         m_peerHostname(peerHostname),
