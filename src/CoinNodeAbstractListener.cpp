@@ -101,3 +101,10 @@ void CoinNodeAbstractListener::askForTx(const std::string& hash)
     CoinNodeMessage msg(this->getMagic(), &getData);
     this->sendMessage(msg);
 }
+
+void CoinNodeAbstractListener::askForMempool()
+{
+    BlankMessage mempool("mempool");
+    CoinNodeMessage msg(this->getMagic(), &mempool);
+    this->sendMessage(msg);
+}

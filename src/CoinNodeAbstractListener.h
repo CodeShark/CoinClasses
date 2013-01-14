@@ -83,6 +83,7 @@ public:
     
     virtual void askForBlock(const std::string& hash);
     virtual void askForTx(const std::string& hash);
+    virtual void askForMempool();
     
     // Implement the following two methods in a derived subclass.
     virtual void onBlock(CoinBlock& block) = 0;
