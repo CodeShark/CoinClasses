@@ -65,6 +65,10 @@ void coinMessageHandler(CoinNodeSocket* pNodeSocket, const CoinNodeMessage& mess
             CoinBlock* pBlock = static_cast<CoinBlock*>(message.getPayload());
             pNodeSocket->pListener->onBlock(*pBlock);
         }
+        else if (command == "addr") {
+            AddrMessage* pAddr = static_cast<AddrMessage*>(message.getPayload());
+            pNodeSocket->pListener->onAddr(*pAddr);
+        }
     }
     catch (const std::exception& e) {
         std::cout << "Exception in coinMessageHandler(): " << e.what() << std::endl;

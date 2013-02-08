@@ -88,6 +88,7 @@ public:
     // Implement the following methods in a derived subclass.
     virtual void onBlock(CoinBlock& block) = 0;
     virtual void onTx(Transaction& tx) = 0;
+    virtual void onAddr(AddrMessage& addr) = 0;
     
     virtual void onSocketClosed(int code) = 0;
 };

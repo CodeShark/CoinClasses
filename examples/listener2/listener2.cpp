@@ -52,6 +52,7 @@ public:
     
     virtual void onBlock(CoinBlock& block);
     virtual void onTx(Transaction& tx);
+    virtual void onAddr(AddrMessage& addr);
     
     virtual void onSocketClosed(int code);
 };
@@ -70,6 +71,14 @@ void SimpleListener::onTx(Transaction& tx)
          << "--New Tx: " << tx.getHashLittleEndian().getHex() << endl
          << "--------------------------------------------------------------------------" << endl
          << tx.toIndentedString() << endl << endl;
+}
+
+void SimpleListener::onAddr(AddrMessage& addr)
+{
+    cout << "--------------------------------------------------------------------------" << endl
+         << "--New Addr: " << addr.getHashLittleEndian().getHex() << endl
+         << "--------------------------------------------------------------------------" << endl
+         << addr.toIndentedString() << endl << endl;
 }
 
 void SimpleListener::onSocketClosed(int code)
