@@ -66,6 +66,10 @@ std::string timeToString(time_t time);
 
 std::string blankSpaces(uint n);
 
+bool isIPv4(const unsigned char bytes[]);
+std::string getIPv4(const unsigned char bytes[]);
+std::string getFormattedIP(const unsigned char bytes[]);
+
 extern uchar_vector g_zero32bytes;
 
 namespace Coin

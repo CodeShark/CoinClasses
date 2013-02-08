@@ -279,7 +279,7 @@ string NetworkAddress::toString() const
     stringstream ss;
     if (this->hasTime)
         ss << "time: " << timeToString(this->time) << ", ";
-        ss << "services: " << this->services << ", ipv6: " << uchar_vector(this->ipv6, 16).getHex(true) << ", port: " << this->port;
+        ss << "services: " << this->services << ", ip: " << getFormattedIP(this->ipv6) << ", port: " << this->port;
     return ss.str();
 }
 
@@ -289,10 +289,43 @@ string NetworkAddress::toIndentedString(uint spaces) const
     if (this->hasTime)
         ss << blankSpaces(spaces) << "time: " << timeToString(this->time) << endl;
     ss << blankSpaces(spaces) << "services: " << this->services << endl
-       << blankSpaces(spaces) << "ipv6: " << uchar_vector(this->ipv6, 16).getHex(true) << endl
+       << blankSpaces(spaces) << "ip: " << getFormattedIP(this->ipv6) << endl
        << blankSpaces(spaces) << "port: " << this->port;
     return ss.str();
 }
+
+bool isIPv4(const unsigned char bytes[])
+{
+    uchar_vector ip(bytes, 16);
+    return ip[0]  == 0x00 &&
+           ip[1]  == 0x00 &&
+           ip[2]  == 0x00 &&
+           ip[3]  == 0x00 &&
+           ip[4]  == 0x00 &&
+           ip[5]  == 0x00 &&
+           ip[6]  == 0x00 &&
+           ip[7]  == 0x00 &&
+           ip[8]  == 0x00 &&
+           ip[9]  == 0x00 &&
+           ip[10] == 0xff &&
+           ip[11] == 0xff;
+}
+
+string getIPv4(const unsigned char bytes[])
+{
+    if (!isIPv4(bytes)) return "";
+    uchar_vector ip(bytes, 16);
+    stringstream ss;
+    ss << (int)ip[12] << "." << (int)ip[13] << "." << (int)ip[14] << "." << (int)ip[15];
+    return ss.str();
+}
+
+string getFormattedIP(const unsigned char bytes[])
+{
+    if (isIPv4(bytes)) return getIPv4(bytes);
+    return uchar_vector(bytes, 16).getHex(true);
+}
+
 ///////////////////////////////////////////////////////////////////////////////
 //
 // class MessageHeader implementation
