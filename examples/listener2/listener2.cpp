@@ -40,12 +40,20 @@ namespace listener_network
 
 class SimpleListener : public CoinNodeAbstractListener
 {
+private:
+    bool bRunning;
+
 public:
     SimpleListener(const string& hostname, uint16_t port)
-        : CoinNodeAbstractListener(listener_network::MAGIC_BYTES, listener_network::PROTOCOL_VERSION, hostname, port) { }
-        
+        : CoinNodeAbstractListener(listener_network::MAGIC_BYTES, listener_network::PROTOCOL_VERSION, hostname, port), bRunning(false) { }
+    
+    virtual void start() { bRunning = true; CoinNodeAbstractListener::start(); }
+    bool isRunning() const { return bRunning; }
+    
     virtual void onBlock(CoinBlock& block);
     virtual void onTx(Transaction& tx);
+    
+    virtual void onSocketClosed(int code);
 };
 
 void SimpleListener::onBlock(CoinBlock& block)
@@ -62,6 +70,15 @@ void SimpleListener::onTx(Transaction& tx)
          << "--New Tx: " << tx.getHashLittleEndian().getHex() << endl
          << "--------------------------------------------------------------------------" << endl
          << tx.toIndentedString() << endl << endl;
+}
+
+void SimpleListener::onSocketClosed(int code)
+{
+    cout << "--------------------------------------------------------------------------" << endl
+         << "--Socket closed with code: " << code << endl
+         << "--------------------------------------------------------------------------" << endl
+         << endl;
+    bRunning = false;
 }
 
 int main(int argc, char* argv[])
@@ -89,6 +106,6 @@ int main(int argc, char* argv[])
         return -1;
     }
 
-    while (true) { sleep(5000); }
+    while (listener.isRunning()) { sleep(1); }
     return 0;
 }

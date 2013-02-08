@@ -85,9 +85,11 @@ public:
     virtual void askForTx(const std::string& hash);
     virtual void askForMempool();
     
-    // Implement the following two methods in a derived subclass.
+    // Implement the following methods in a derived subclass.
     virtual void onBlock(CoinBlock& block) = 0;
     virtual void onTx(Transaction& tx) = 0;
+    
+    virtual void onSocketClosed(int code) = 0;
 };
 
 }; // namespace Coin

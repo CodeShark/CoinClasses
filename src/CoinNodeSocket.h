@@ -24,6 +24,7 @@ class CoinNodeSocket;
 class CoinNodeAbstractListener;
 
 typedef void (*CoinMessageHandler)(CoinNodeSocket* pNodeSocket, const Coin::CoinNodeMessage& message);
+typedef void (*SocketClosedHandler)(CoinNodeSocket* pNodeSocket, int code);
 
 class CoinNodeSocket
 {
@@ -40,6 +41,8 @@ private:
     CoinMessageHandler coinMessageHandler;
     pthread_t h_messageThread;
     pthread_mutex_t m_sendLock;
+    
+    SocketClosedHandler socketClosedHandler;
     
     bool m_multithreaded;
 
@@ -66,8 +69,10 @@ public:
     std::string getHostname() const { return m_hostname; }
     uint getPort() const { return m_port; }
     CoinMessageHandler getMessageHandler() const { return coinMessageHandler; }
+    SocketClosedHandler getSocketClosedHandler() const { return socketClosedHandler; }
 
-    void open(CoinMessageHandler callback, uint32_t magic, uint32_t version, const char* hostname = "127.0.0.1", uint port = 8333);
+    void open(CoinMessageHandler callback, uint32_t magic, uint32_t version, const char* hostname = "127.0.0.1", uint port = 8333,
+              SocketClosedHandler socketClosedHandler = NULL);
     void close();
 
     void doHandshake(

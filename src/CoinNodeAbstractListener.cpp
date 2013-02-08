@@ -74,10 +74,15 @@ void coinMessageHandler(CoinNodeSocket* pNodeSocket, const CoinNodeMessage& mess
         pNodeSocket->pListener->unlockHandler();
 }
 
+void socketClosedHandler(CoinNodeSocket* pNodeSocket, int code)
+{
+    pNodeSocket->pListener->onSocketClosed(code);
+}
+
 void CoinNodeAbstractListener::start()
 {
     m_nodeSocket.setMultithreaded(false);
-    m_nodeSocket.open(coinMessageHandler, m_magic, m_version, m_peerHostname.c_str(), m_port);
+    m_nodeSocket.open(coinMessageHandler, m_magic, m_version, m_peerHostname.c_str(), m_port, socketClosedHandler);
     m_nodeSocket.doHandshake(m_version, NODE_NETWORK, time(NULL), m_peerAddress, m_listenerAddress, getRandomNonce64(), "", 0);
     m_nodeSocket.waitOnHandshakeComplete();
 }	

@@ -70,6 +70,26 @@ void messageHandlerThread(void* pParams)
     delete pHandlerParams;
 }
 
+class recv_exception : public runtime_error
+{
+private:
+    int code;
+    
+public:
+    recv_exception(int _code, const char* description) : runtime_error(description), code(_code) { }
+    int getCode() const { return code; }
+};
+
+int _recv(int s, void* buf, size_t len, int flags)
+{
+    int bytesRecv = recv(s, buf, len, flags);
+    if (bytesRecv == 0)
+        throw recv_exception(0, "Connection closed by peer.");
+    if (bytesRecv == -1)
+        throw recv_exception(errno, "Socket error");
+    return bytesRecv;
+}
+
 void messageLoop(void* param)
 {
     try {
@@ -84,6 +104,7 @@ void messageLoop(void* param)
 #endif
         int h_socket = pNodeSocket->getSocketHandle();
         CoinMessageHandler messageHandler = pNodeSocket->getMessageHandler();
+        SocketClosedHandler socketClosedHandler = pNodeSocket->getSocketClosedHandler();
         unsigned char command[12];
         uchar_vector payload;
         uint payloadLength;
@@ -96,14 +117,14 @@ void messageLoop(void* param)
                 // Find magic bytes. all magic bytes must exist in a single frame to be recognized.
                 uchar_vector::iterator it;
                 while ((it = search(message.begin(), message.end(), magicBytes.begin(), magicBytes.end())) == message.end()) {
-                    bytesBuffered = recv(h_socket, receivedData, SOCKET_BUFFER_SIZE, 0);
+                    bytesBuffered = _recv(h_socket, receivedData, SOCKET_BUFFER_SIZE, 0);
                     message = uchar_vector(receivedData, bytesBuffered);
                 }
                 message.assign(it, message.end()); // remove everything before magic bytes
 
                 // get rest of header
                 while (message.size() < MIN_MESSAGE_HEADER_SIZE) {
-                    bytesBuffered = recv(h_socket, receivedData, SOCKET_BUFFER_SIZE, 0);
+                    bytesBuffered = _recv(h_socket, receivedData, SOCKET_BUFFER_SIZE, 0);
                     message += uchar_vector(receivedData, bytesBuffered);
                 }
                 // get command
@@ -120,7 +141,7 @@ void messageLoop(void* param)
 
                 // get checksum and payload
                 while (message.size() < MIN_MESSAGE_HEADER_SIZE + checksumLength + payloadLength) {
-                    bytesBuffered = recv(h_socket, receivedData, SOCKET_BUFFER_SIZE, 0);
+                    bytesBuffered = _recv(h_socket, receivedData, SOCKET_BUFFER_SIZE, 0);
                     message += uchar_vector(receivedData, bytesBuffered);
                 }
 
@@ -158,6 +179,14 @@ void messageLoop(void* param)
                 // shift message frame over
                 message.assign(message.begin() + MESSAGE_HEADER_SIZE + checksumLength + payloadLength, message.end());
             }
+            catch (const recv_exception& e)
+            {
+#ifdef __SHOW_EXCEPTIONS__
+                fprintf(stdout, "recv_exception: %s\n", e.what());
+#endif
+                if (socketClosedHandler) socketClosedHandler(pNodeSocket, e.getCode());
+                return;
+            }
             catch (const exception& e) {
                 message.assign(message.begin() + MESSAGE_HEADER_SIZE + checksumLength + payloadLength, message.end());
 #ifdef __SHOW_EXCEPTIONS__
@@ -185,7 +214,8 @@ CoinNodeSocket::CoinNodeSocket()
     this->h_lastCallbackThread = 0;
 }
 
-void CoinNodeSocket::open(CoinMessageHandler callback, uint32_t magic, uint version, const char* hostname, uint port)
+void CoinNodeSocket::open(CoinMessageHandler callback, uint32_t magic, uint version, const char* hostname, uint port,
+                          SocketClosedHandler socketClosedHandler)
 {
     if (this->h_socket != -1) throw runtime_error("Connection already open.");
 
@@ -207,7 +237,8 @@ void CoinNodeSocket::open(CoinMessageHandler callback, uint32_t magic, uint vers
     this->m_version = version;
     this->m_hostname = hostname;
     this->m_port = port;
-
+    this->socketClosedHandler = socketClosedHandler;
+    
     this->h_messageThread = 0;
     int ret = pthread_create(&this->h_messageThread, NULL, (void*(*)(void*))messageLoop, this);
     if (ret != 0) {
