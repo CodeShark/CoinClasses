@@ -231,8 +231,10 @@ void CoinNodeSocket::open(CoinMessageHandler callback, uint32_t magic, uint vers
     serverAddress.sin_addr = *((struct in_addr*)this->p_host->h_addr);
     bzero(&(serverAddress.sin_zero), 8);
 
-    if (connect(h_socket, (struct sockaddr*)&serverAddress, sizeof(struct sockaddr)) == -1)
+    if (connect(h_socket, (struct sockaddr*)&serverAddress, sizeof(struct sockaddr)) == -1) {
+        this->h_socket = -1;
         throw runtime_error("Error connecting to socket.");
+    }
 
     this->coinMessageHandler = callback;
     this->m_magic = magic;
@@ -247,6 +249,7 @@ void CoinNodeSocket::open(CoinMessageHandler callback, uint32_t magic, uint vers
     if (ret != 0) {
         stringstream ss;
         ss << "CoinNodeSocket::open() - pthread_create returned error code " << ret << ".";
+        this->h_socket = -1;
         throw runtime_error(ss.str().c_str());
     }
 
@@ -261,8 +264,10 @@ void CoinNodeSocket::open(CoinMessageHandler callback, uint32_t magic, uint vers
 void CoinNodeSocket::close()
 {
     if (this->h_messageThread) pthread_cancel(this->h_messageThread);
-    ::close(h_socket);
-    h_socket = -1;
+    if (h_socket != -1) {
+        ::close(h_socket);
+        h_socket = -1;
+    }
 }
 
 void CoinNodeSocket::doHandshake(
