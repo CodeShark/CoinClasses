@@ -439,7 +439,7 @@ void CoinNodeMessage::setMessage(uint32_t magic, CoinNodeStructure* pPayload)
     else {
         string error_msg = "Unrecognized command: ";
         error_msg += command;
-        throw error_msg.c_str();
+        throw runtime_error(error_msg.c_str());
     }
 }
 
@@ -526,7 +526,7 @@ void CoinNodeMessage::setSerialized(const uchar_vector& bytes)
     else {
         string error_msg = "Unrecognized command: ";
         error_msg += command;
-        throw error_msg.c_str();
+        throw runtime_error(error_msg.c_str());
     }
 }
 
