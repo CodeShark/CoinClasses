@@ -10,6 +10,7 @@ LIBS = \
     -l boost_thread
 
 OBJS = \
+    obj/IPv6.o \
 	obj/CoinNodeData.o \
 	obj/CoinNodeSocket.o
 

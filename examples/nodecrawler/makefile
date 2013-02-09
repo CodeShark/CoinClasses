@@ -11,6 +11,7 @@ LIBS = \
 	-l boost_regex
 
 OBJS = \
+    obj/IPv6.o \
 	obj/CoinNodeData.o \
 	obj/CoinNodeSocket.o \
 	obj/CoinNodeAbstractListener.o
