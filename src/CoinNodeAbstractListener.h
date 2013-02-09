@@ -56,9 +56,9 @@ public:
     CoinNodeAbstractListener(uint32_t magic, uint32_t version, const std::string& peerHostname, uint16_t port, bool syncMessages = false,
         const unsigned char* peerIpAddress = DEFAULT_Ipv6, const unsigned char* listenerIpAddress = DEFAULT_Ipv6) :
         m_magic(magic),
+        m_version(version),
         m_peerHostname(peerHostname),
         m_port(port),
-        m_version(version),
         m_syncMessages(syncMessages)
     {
         m_listenerAddress.set(NODE_NETWORK, listenerIpAddress, port);

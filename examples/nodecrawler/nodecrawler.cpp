@@ -22,28 +22,90 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
 
-#include <IPv6.h>
+#include <CoinNodeAbstractListener.h>
+
+#include <set>
+#include <map>
+#include <memory>
 #include <iostream>
 
 using namespace std;
+using namespace Coin;
+
+// Change these to use a different network
+namespace listener_network
+{
+    const uint32_t MAGIC_BYTES = 0xd9b4bef9ul;
+    const uint32_t PROTOCOL_VERSION = 60002;
+    const uint8_t ADDRESS_VERSION = 0x00;
+    const uint8_t MULTISIG_ADDRESS_VERSION = 0x05;
+};
+
+class AddrListener : public CoinNodeAbstractListener
+{
+private:
+    string name;
+    
+public:
+    AddrListener(const string& hostname, uint16_t port)
+        : CoinNodeAbstractListener(listener_network::MAGIC_BYTES, listener_network::PROTOCOL_VERSION, hostname, port)
+    {
+        stringstream ss;
+        ss << hostname << ":" << port;
+        name = ss.str();
+    }
+    
+    virtual void onBlock(CoinBlock& block) { }
+    virtual void onTx(Transaction& tx) { }
+    virtual void onAddr(AddrMessage& addr);
+    
+    virtual void onSocketClosed(int code);
+};
+
+set<string> hosts;
+map<string, shared_ptr<AddrListener> > connections;
+
+void AddrListener::onAddr(AddrMessage& addr)
+{
+    for (uint i = 0; i < addr.addrList.size(); i++)
+    {
+        cout << addr.addrList[i].toString() << endl;
+    }
+}
+
+void AddrListener::onSocketClosed(int code)
+{
+    cout << "-------------------------------------------------------------------" << endl
+         << "--Socket for host " << name << " closed with code " << code << "." << endl
+         << "-------------------------------------------------------------------" << endl
+         << endl;
+}
 
 int main(int argc, char* argv[])
 {
-    if (argc < 2) {
-        cout << "Usage: " << argv[0] << " <ip address>" << endl;
+    if (argc < 3) {
+        cout << "Usage: " << argv[0] << " <hostname> <port>" << endl
+        << "Example: " << argv[0] << " 127.0.0.1 8333" << endl;
         return 0;
     }
-
-    IPv6Address ipv6;
-    try {
-        ipv6 = argv[1];
-        cout << ipv6.toString() << endl;
-        if (ipv6.isIPv4())
-            cout << "IPv4: " << ipv6.toIPv4String() << endl;
+    
+    SetAddressVersion(listener_network::ADDRESS_VERSION);
+    SetMultiSigAddressVersion(listener_network::MULTISIG_ADDRESS_VERSION);
+	
+    uint32_t port = strtoul(argv[2], NULL, 0);
+    AddrListener listener(argv[1], port);
+    try
+    {
+        cout << "Starting listener..." << flush;
+        listener.start();
+        cout << "started." << endl << endl;
     }
-    catch (const exception& e) {
-        cout << "Exception: " << e.what() << endl;
+    catch (const exception& e)
+    {
+        cout << "Error: " << e.what() << endl << endl;
+        return -1;
     }
-
+    
+    while (true) { sleep(5000); }
     return 0;
 }
