@@ -107,7 +107,8 @@ int main(int argc, char* argv[])
     {
         cout << "Starting listener..." << flush;
         listener.start();
-        cout << "started." << endl << endl;	
+        cout << "started." << endl << endl;
+        listener.askForPeers();
     }
     catch (const exception& e)
     {

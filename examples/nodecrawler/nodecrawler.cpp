@@ -68,6 +68,7 @@ map<string, shared_ptr<AddrListener> > g_connections;
 
 void AddrListener::onAddr(AddrMessage& addr)
 {
+    cout << "Received addr message from " << name << endl;
     for (uint i = 0; i < addr.addrList.size(); i++)
     {
         // Only look at ipv4 nodes
@@ -83,10 +84,11 @@ void AddrListener::onAddr(AddrMessage& addr)
             AddrListener* pListener = new AddrListener(ip, addr.addrList[i].port);
             try
             {
-                cout << "Opening connection to " << ss.str() << "..." << flush;
+                cout << "  Opening connection to " << ss.str() << "..." << flush;
                 pListener->start();
                 cout << "connected." << endl;
                 g_connections[ss.str()] = shared_ptr<AddrListener>(pListener);
+                pListener->askForPeers();
             }
             catch (const exception& e)
             {
@@ -121,6 +123,7 @@ int main(int argc, char* argv[])
         cout << "Starting listener..." << flush;
         listener.start();
         cout << "started." << endl << endl;
+        listener.askForPeers();
     }
     catch (const exception& e)
     {

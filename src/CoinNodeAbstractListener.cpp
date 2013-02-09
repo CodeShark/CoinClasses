@@ -111,6 +111,13 @@ void CoinNodeAbstractListener::askForTx(const std::string& hash)
     this->sendMessage(msg);
 }
 
+void CoinNodeAbstractListener::askForPeers()
+{
+    BlankMessage mempool("getaddr");
+    CoinNodeMessage msg(this->getMagic(), &mempool);
+    this->sendMessage(msg);
+}
+
 void CoinNodeAbstractListener::askForMempool()
 {
     BlankMessage mempool("mempool");

@@ -38,19 +38,19 @@ class CoinNodeAbstractListener
 {
 protected:
     CoinNodeSocket m_nodeSocket;
-    
+
     uint32_t m_magic;
     uint32_t m_version;
 
     std::string m_peerHostname;
     uint16_t m_port;
- 
+
     NetworkAddress m_peerAddress;
     NetworkAddress m_listenerAddress;
-    
+
     bool m_syncMessages;
     pthread_mutex_t m_handlerLock;
-	
+
 public:
     // set syncMessages to false to allow subclass to handle thread synchronization itself.
     CoinNodeAbstractListener(uint32_t magic, uint32_t version, const std::string& peerHostname, uint16_t port, bool syncMessages = false,
@@ -67,12 +67,12 @@ public:
         if (m_syncMessages)
             pthread_mutex_init(&this->m_handlerLock, NULL);
     }
-	
+
     virtual ~CoinNodeAbstractListener() { this->stop(); }
-    
+
     virtual int lockHandler() { return (m_syncMessages ? pthread_mutex_lock(&m_handlerLock) : 0); }
     virtual int unlockHandler() { return (m_syncMessages ? pthread_mutex_unlock(&m_handlerLock) : 0); }
-		
+
     uint32_t getMagic() const { return m_magic; }
     uint32_t getVersion() const { return m_version; }
 
@@ -80,16 +80,17 @@ public:
     virtual void stop() { m_nodeSocket.close(); }
 	
     virtual void sendMessage(const CoinNodeMessage& pMessage) { m_nodeSocket.sendMessage(pMessage); }
-    
+
     virtual void askForBlock(const std::string& hash);
     virtual void askForTx(const std::string& hash);
+    virtual void askForPeers();
     virtual void askForMempool();
-    
+
     // Implement the following methods in a derived subclass.
     virtual void onBlock(CoinBlock& block) { };
     virtual void onTx(Transaction& tx) { };
     virtual void onAddr(AddrMessage& addr) { };
-    
+
     virtual void onSocketClosed(int code) { };
 };
 
