@@ -30,6 +30,8 @@
 #include <iostream>
 
 #include <boost/thread/thread.hpp>
+#include <boost/thread/mutex.hpp>
+#include <boost/thread/locks.hpp>
 
 using namespace std;
 using namespace Coin;
@@ -43,6 +45,21 @@ namespace listener_network
     const uint8_t MULTISIG_ADDRESS_VERSION = 0x05;
 };
 
+string getNodeName(const string& ip, uint16_t port)
+{
+    stringstream ss;
+    ss << ip << ":" << port;
+    return ss.str();
+}
+
+boost::mutex lineOut_mutex;
+
+void lineOut(const string& line)
+{
+    boost::unique_lock<boost::mutex> lock(lineOut_mutex);
+    cout << line << endl;
+}
+
 class AddrListener : public CoinNodeAbstractListener
 {
 private:
@@ -53,9 +70,7 @@ public:
     AddrListener(const string& hostname, uint16_t port)
         : CoinNodeAbstractListener(listener_network::MAGIC_BYTES, listener_network::PROTOCOL_VERSION, hostname, port)
     {
-        stringstream ss;
-        ss << hostname << ":" << port;
-        name = ss.str();
+        name = getNodeName(hostname, port);
     }
     
     void start() { CoinNodeAbstractListener::start(); time_connected = time(NULL); }
@@ -68,29 +83,27 @@ public:
 set<string> g_peers;
 map<string, unique_ptr<AddrListener> > g_connections;
 
-string getNodeName(const string& ip, uint16_t port)
-{
-    stringstream ss;
-    ss << ip << ":" << port;
-    return ss.str();
-}
-
 void tryConnecting(const string& ip, uint16_t port, const string& nodeName)
 {
     AddrListener* pListener = new AddrListener(ip, port);
 
     try
     {
-        cout << "Trying " << nodeName << "..." << endl;
+        lineOut(string("Trying ") + nodeName + "...");
         pListener->start();
-        cout << "Opened connection to " << nodeName << endl;
+        lineOut(string("Opened connection to ") + nodeName);
         g_connections[nodeName] = unique_ptr<AddrListener>(pListener);
         pListener->askForPeers();
     }
     catch (const exception& e)
     {
         delete pListener;
-        cout << e.what() << endl;
+        lineOut(nodeName + " " + e.what());
+    }
+    catch (const char* what)
+    {
+        delete pListener;
+        lineOut(nodeName + " " + what);
     }
 }
 
@@ -115,7 +128,9 @@ void AddrListener::onAddr(AddrMessage& addr)
 
     if (nodeNames.size() == 0) return;
 
-    cout << "Added " << nodeNames.size() << " address(es) from " << name << endl;
+    stringstream ss;
+    ss << "Added " << nodeNames.size() << " address(es) from " << name;
+    lineOut(ss.str());
     for (uint i = 0; i < nodeNames.size(); i++)
     {
         if (g_connections.count(nodeNames[i]) == 0)
@@ -125,7 +140,9 @@ void AddrListener::onAddr(AddrMessage& addr)
 
 void AddrListener::onSocketClosed(int code)
 {
-    cout << "Closed connection to " << name << " with code " << code << endl;
+    stringstream ss;
+    ss << "Closed connection to " << name << " with code " << code;
+    lineOut(ss.str());
     g_connections.erase(name);
 }
 
