@@ -24,11 +24,14 @@
 
 #include <CoinNodeAbstractListener.h>
 
+#include <signal.h>
+
 #include <set>
 #include <map>
 #include <queue>
 #include <memory>
 #include <iostream>
+#include <iomanip>
 
 #include <boost/thread/thread.hpp>
 #include <boost/thread/mutex.hpp>
@@ -56,6 +59,8 @@ string getNodeName(const string& ip, uint16_t port)
 }
 
 boost::mutex lineOut_mutex;
+
+bool bShuttingDown = false;
 
 void lineOut(const string& line)
 {
@@ -93,16 +98,27 @@ boost::mutex insertion_deletion_mutex;
 
 void tryConnecting(const string& ip, uint16_t port, const string& nodeName)
 {
+    if (bShuttingDown) return;
+
     AddrListener* pListener = new AddrListener(ip, port);
 
     try
     {
         stringstream ss;
-        ss << "Trying " << nodeName + "... "
-           << "(# of open connections: " << g_connectionMap.size() << ", # of known peers: " << g_peerSet.size()
-           << ", # of successful connections: " << g_successfulConnectionSet.size() << ")";
+        {
+            boost::unique_lock<boost::mutex> lock(insertion_deletion_mutex);
+            ss << "Trying " << nodeName + "... "
+               << "(# of open connections: " << g_connectionMap.size() << ", # of known peers: " << g_peerSet.size()
+               << ", # of successful connections: " << g_successfulConnectionSet.size() << ")";
+        }
         lineOut(ss.str());
         pListener->start();
+        if (bShuttingDown) {
+            pListener->stop();
+            delete pListener;
+            return;
+        }
+
         lineOut(string("Opened connection to ") + nodeName);
         {
             boost::unique_lock<boost::mutex> lock(insertion_deletion_mutex);
@@ -127,6 +143,8 @@ void tryConnecting(const string& ip, uint16_t port, const string& nodeName)
 
 void AddrListener::onAddr(AddrMessage& addr)
 {
+    if (bShuttingDown) return;
+
     vector<string> ips;
     vector<uint16_t> ports;
     vector<string> nodeNames;
@@ -164,6 +182,35 @@ void AddrListener::onSocketClosed(int code)
     g_connectionMap.erase(name);
 }
 
+void ShutDown(int param)
+{
+    bShuttingDown = true;
+    lineOut("Shutting down...");
+
+    boost::unique_lock<boost::mutex> lock(insertion_deletion_mutex);
+
+    lineOut("Stopping all connections...");
+    for (map<string, unique_ptr<AddrListener> >::iterator it = g_connectionMap.begin(); it != g_connectionMap.end(); ++it)
+        it->second->stop();
+
+    g_connectionMap.clear();
+
+    stringstream ssSize;
+    ssSize << g_successfulConnectionSet.size();
+    int ssWidth = ssSize.str().size();
+    lineOut("Peers to which successful connections were made:");
+
+    int i = 0;
+    for (set<string>::iterator it = g_successfulConnectionSet.begin(); it != g_successfulConnectionSet.end(); ++it)
+    {        
+        stringstream ss;
+        ss << "  " << setfill(' ') << setw(ssWidth) << ++i << ") " << *it;
+        lineOut(ss.str());
+    }
+
+    exit(0);
+}
+
 int main(int argc, char* argv[])
 {
     if (argc < 3) {
@@ -171,7 +218,12 @@ int main(int argc, char* argv[])
         << "Example: " << argv[0] << " 127.0.0.1 8333" << endl;
         return 0;
     }
-    
+
+    void (*pHandler)(int);
+    pHandler = signal(SIGINT, ShutDown);
+    if (pHandler == SIG_IGN)
+        signal(SIGINT, SIG_IGN);
+
     SetAddressVersion(listener_network::ADDRESS_VERSION);
     SetMultiSigAddressVersion(listener_network::MULTISIG_ADDRESS_VERSION);
 	
