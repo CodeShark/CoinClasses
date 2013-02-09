@@ -162,10 +162,12 @@ void messageLoop(void* param)
                         if (pNodeSocket->isMultithreaded()) {
                             // messageHandlerThread deallocates the pParams structure.
                             MessageHandlerParams* pParams = new MessageHandlerParams(pNodeSocket, nodeMessage);
-                            int nErr = pthread_create(&pNodeSocket->h_lastCallbackThread, NULL, (void*(*)(void*))messageHandlerThread, pParams);
 #ifdef __DEBUG_OUT__
+                            int nErr = pthread_create(&pNodeSocket->h_lastCallbackThread, NULL, (void*(*)(void*))messageHandlerThread, pParams);
                             if (nErr != 0)
                                 fprintf(stdout, "CoinNodeSocket::open() - pthread_create returned error code %d.\n", nErr);
+#else
+                            pthread_create(&pNodeSocket->h_lastCallbackThread, NULL, (void*(*)(void*))messageHandlerThread, pParams);
 #endif
                         }
                         else {
