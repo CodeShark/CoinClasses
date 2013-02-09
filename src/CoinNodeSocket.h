@@ -15,6 +15,8 @@
 #include <string>
 #include <iostream>
 
+#include <boost/thread/mutex.hpp>
+
 typedef struct hostent SHostent;
 typedef struct sockaddr_in SockaddrIn;
 
@@ -53,7 +55,9 @@ public:
     pthread_mutex_t m_handshakeLock;
     pthread_cond_t m_handshakeComplete;
     pthread_mutex_t m_updateAppDataLock;
-    
+
+    boost::mutex open_close_mutex;
+
     pthread_t h_lastCallbackThread;
 
     CoinNodeSocket();

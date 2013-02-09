@@ -24,6 +24,8 @@
 
 #include "CoinNodeAbstractListener.h"
 
+#include <boost/thread/locks.hpp>
+
 using namespace Coin;
 
 uint64_t getRandomNonce64()
@@ -40,6 +42,8 @@ uint64_t getRandomNonce64()
 
 void coinMessageHandler(CoinNodeSocket* pNodeSocket, const CoinNodeMessage& message)
 {
+    boost::unique_lock<boost::mutex> lock(pNodeSocket->open_close_mutex);
+
     std::string command = message.getCommand();
     
     if (command == "tx" || command == "block")

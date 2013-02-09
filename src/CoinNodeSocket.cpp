@@ -42,6 +42,8 @@
 #include <sstream>
 #include <stdexcept>
 
+#include <boost/thread/locks.hpp>
+
 #define SOCKET_BUFFER_SIZE 16384
 #define MESSAGE_HEADER_SIZE 20
 #define COMMAND_SIZE 12
@@ -220,6 +222,8 @@ CoinNodeSocket::CoinNodeSocket()
 void CoinNodeSocket::open(CoinMessageHandler callback, uint32_t magic, uint version, const char* hostname, uint port,
                           SocketClosedHandler socketClosedHandler)
 {
+    boost::unique_lock<boost::mutex> lock(open_close_mutex);
+
     if (this->h_socket != -1) throw runtime_error("Connection already open.");
 
     this->p_host = gethostbyname(hostname);
@@ -263,7 +267,13 @@ void CoinNodeSocket::open(CoinMessageHandler callback, uint32_t magic, uint vers
 
 void CoinNodeSocket::close()
 {
-    if (this->h_messageThread) pthread_cancel(this->h_messageThread);
+    boost::unique_lock<boost::mutex> lock(open_close_mutex);
+
+    if (h_messageThread) {
+        pthread_cancel(h_messageThread);
+        h_messageThread = 0;
+    }
+
     if (h_socket != -1) {
         ::close(h_socket);
         h_socket = -1;

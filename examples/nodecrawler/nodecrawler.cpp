@@ -85,6 +85,7 @@ public:
 };
 
 set<string> g_peerSet;
+set<string> g_successfulConnectionSet;
 queue<string> g_connectionQueue;
 map<string, unique_ptr<AddrListener> > g_connectionMap;
 
@@ -97,15 +98,18 @@ void tryConnecting(const string& ip, uint16_t port, const string& nodeName)
     try
     {
         stringstream ss;
-        ss << "Trying " << nodeName + "... " << "(# of open connections: " << g_connectionMap.size() << ", # of known peers: " << g_peerSet.size() << ")";
+        ss << "Trying " << nodeName + "... "
+           << "(# of open connections: " << g_connectionMap.size() << ", # of known peers: " << g_peerSet.size()
+           << ", # of successful connections: " << g_successfulConnectionSet.size() << ")";
         lineOut(ss.str());
         pListener->start();
         lineOut(string("Opened connection to ") + nodeName);
         {
             boost::unique_lock<boost::mutex> lock(insertion_deletion_mutex);
+            g_successfulConnectionSet.insert(nodeName);
             g_connectionMap[nodeName] = unique_ptr<AddrListener>(pListener);
             g_connectionQueue.push(nodeName); 
-            while (g_connectionQueue.size() > MAX_CONNECTIONS) {
+            while (g_connectionMap.size() > MAX_CONNECTIONS) {
                 string disconnectPeerName = g_connectionQueue.front();
                 g_connectionMap[disconnectPeerName]->stop();
                 g_connectionMap.erase(disconnectPeerName);
