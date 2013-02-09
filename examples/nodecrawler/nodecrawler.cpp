@@ -45,6 +45,7 @@ class AddrListener : public CoinNodeAbstractListener
 {
 private:
     string name;
+    time_t time_connected;
     
 public:
     AddrListener(const string& hostname, uint16_t port)
@@ -55,28 +56,51 @@ public:
         name = ss.str();
     }
     
+    void start() { CoinNodeAbstractListener::start(); time_connected = time(NULL); }
+    
     virtual void onAddr(AddrMessage& addr);
     
     virtual void onSocketClosed(int code);
 };
 
-set<string> hosts;
-map<string, shared_ptr<AddrListener> > connections;
+set<string> g_hosts;
+map<string, shared_ptr<AddrListener> > g_connections;
 
 void AddrListener::onAddr(AddrMessage& addr)
 {
     for (uint i = 0; i < addr.addrList.size(); i++)
     {
-        cout << addr.addrList[i].toString() << endl;
+        // Only look at ipv4 nodes
+        if (!addr.addrList[i].ipv6.isIPv4()) continue;
+
+        stringstream ss;
+        string ip = addr.addrList[i].ipv6.toIPv4String();
+        ss << ip << ":" << addr.addrList[i].port;
+        g_hosts.insert(ss.str());
+        
+        if (g_connections.count(ss.str()) == 0)
+        {
+            AddrListener* pListener = new AddrListener(ip, addr.addrList[i].port);
+            try
+            {
+                cout << "Opening connection to " << ss.str() << "..." << flush;
+                pListener->start();
+                cout << "connected." << endl;
+                g_connections[ss.str()] = shared_ptr<AddrListener>(pListener);
+            }
+            catch (const exception& e)
+            {
+                delete pListener;
+                cout << e.what() << endl;
+            }
+        }
     }
 }
 
 void AddrListener::onSocketClosed(int code)
 {
-    cout << "-------------------------------------------------------------------" << endl
-         << "--Socket for host " << name << " closed with code " << code << "." << endl
-         << "-------------------------------------------------------------------" << endl
-         << endl;
+    cout << "Closed connection to " << name << " with code " << code << "." << endl;
+    g_connections.erase(name);
 }
 
 int main(int argc, char* argv[])
