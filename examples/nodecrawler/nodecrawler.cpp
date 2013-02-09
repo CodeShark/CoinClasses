@@ -63,31 +63,49 @@ public:
     virtual void onSocketClosed(int code);
 };
 
-set<string> g_hosts;
-map<string, shared_ptr<AddrListener> > g_connections;
+set<string> g_peers;
+map<string, unique_ptr<AddrListener> > g_connections;
+
+string getNodeName(const string& ip, uint16_t port)
+{
+    stringstream ss;
+    ss << ip << ":" << port;
+    return ss.str();
+}
 
 void AddrListener::onAddr(AddrMessage& addr)
 {
-    cout << "Received addr message from " << name << endl;
+    vector<string> ips;
+    vector<uint16_t> ports;
+    vector<string> nodeNames;
     for (uint i = 0; i < addr.addrList.size(); i++)
     {
         // Only look at ipv4 nodes
         if (!addr.addrList[i].ipv6.isIPv4()) continue;
-
-        stringstream ss;
-        string ip = addr.addrList[i].ipv6.toIPv4String();
-        ss << ip << ":" << addr.addrList[i].port;
-        g_hosts.insert(ss.str());
         
-        if (g_connections.count(ss.str()) == 0)
+        string ip = addr.addrList[i].ipv6.toIPv4String();
+        ips.push_back(ip);
+        ports.push_back(addr.addrList[i].port);
+        
+        string nodeName = getNodeName(ip, addr.addrList[i].port);
+        nodeNames.push_back(nodeName);
+        g_peers.insert(nodeName);
+    }
+
+    if (nodeNames.size() == 0) return;
+
+    cout << "Added " << nodeNames.size() << " address(es) from " << name << "." << endl;
+    for (uint i = 0; i < nodeNames.size(); i++)
+    {
+        if (g_connections.count(nodeNames[i]) == 0)
         {
-            AddrListener* pListener = new AddrListener(ip, addr.addrList[i].port);
+            AddrListener* pListener = new AddrListener(ips[i], ports[i]);
             try
             {
-                cout << "  Opening connection to " << ss.str() << "..." << flush;
+                cout << "Opening connection to " << nodeNames[i] << "..." << flush;
                 pListener->start();
                 cout << "connected." << endl;
-                g_connections[ss.str()] = shared_ptr<AddrListener>(pListener);
+                g_connections[nodeNames[i]] = unique_ptr<AddrListener>(pListener);
                 pListener->askForPeers();
             }
             catch (const exception& e)
