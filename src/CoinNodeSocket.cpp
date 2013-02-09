@@ -37,6 +37,7 @@
 #include <unistd.h>
 #include <errno.h>
 #include <pthread.h>
+#include <time.h>
 
 #include <sstream>
 #include <stdexcept>
@@ -283,8 +284,13 @@ void CoinNodeSocket::doHandshake(
 void CoinNodeSocket::waitOnHandshakeComplete()
 {
     pthread_mutex_lock(&this->m_handshakeLock);
-    pthread_cond_wait(&this->m_handshakeComplete, &this->m_handshakeLock);
+    struct timespec ts;
+    clock_gettime(CLOCK_REALTIME, &ts);
+    ts.tv_sec += 5;
+    int rval = pthread_cond_timedwait(&this->m_handshakeComplete, &this->m_handshakeLock, &ts);
+    if (rval != 0) close();
     pthread_mutex_unlock(&this->m_handshakeLock);
+    if (rval != 0) throw runtime_error("Handshake timed out.");
 }
 
 void CoinNodeSocket::sendMessage(const CoinNodeMessage& message)
