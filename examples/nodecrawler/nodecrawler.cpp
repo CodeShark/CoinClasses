@@ -29,6 +29,8 @@
 #include <memory>
 #include <iostream>
 
+#include <boost/thread/thread.hpp>
+
 using namespace std;
 using namespace Coin;
 
@@ -73,6 +75,25 @@ string getNodeName(const string& ip, uint16_t port)
     return ss.str();
 }
 
+void tryConnecting(const string& ip, uint16_t port, const string& nodeName)
+{
+    AddrListener* pListener = new AddrListener(ip, port);
+
+    try
+    {
+        cout << "Trying " << nodeName << "..." << endl;
+        pListener->start();
+        cout << "Opened connection to " << nodeName << endl;
+        g_connections[nodeName] = unique_ptr<AddrListener>(pListener);
+        pListener->askForPeers();
+    }
+    catch (const exception& e)
+    {
+        delete pListener;
+        cout << e.what() << endl;
+    }
+}
+
 void AddrListener::onAddr(AddrMessage& addr)
 {
     vector<string> ips;
@@ -94,32 +115,17 @@ void AddrListener::onAddr(AddrMessage& addr)
 
     if (nodeNames.size() == 0) return;
 
-    cout << "Added " << nodeNames.size() << " address(es) from " << name << "." << endl;
+    cout << "Added " << nodeNames.size() << " address(es) from " << name << endl;
     for (uint i = 0; i < nodeNames.size(); i++)
     {
         if (g_connections.count(nodeNames[i]) == 0)
-        {
-            AddrListener* pListener = new AddrListener(ips[i], ports[i]);
-            try
-            {
-                cout << "Opening connection to " << nodeNames[i] << "..." << flush;
-                pListener->start();
-                cout << "connected." << endl;
-                g_connections[nodeNames[i]] = unique_ptr<AddrListener>(pListener);
-                pListener->askForPeers();
-            }
-            catch (const exception& e)
-            {
-                delete pListener;
-                cout << e.what() << endl;
-            }
-        }
+            boost::thread t(tryConnecting, ips[i], ports[i], nodeNames[i]);
     }
 }
 
 void AddrListener::onSocketClosed(int code)
 {
-    cout << "Closed connection to " << name << " with code " << code << "." << endl;
+    cout << "Closed connection to " << name << " with code " << code << endl;
     g_connections.erase(name);
 }
 
