@@ -26,6 +26,7 @@
 
 #include <set>
 #include <map>
+#include <queue>
 #include <memory>
 #include <iostream>
 
@@ -44,6 +45,8 @@ namespace listener_network
     const uint8_t ADDRESS_VERSION = 0x00;
     const uint8_t MULTISIG_ADDRESS_VERSION = 0x05;
 };
+
+const size_t MAX_CONNECTIONS = 10;
 
 string getNodeName(const string& ip, uint16_t port)
 {
@@ -74,14 +77,18 @@ public:
     }
     
     void start() { CoinNodeAbstractListener::start(); time_connected = time(NULL); }
+    void stop() { CoinNodeAbstractListener::stop(); lineOut(("Closed connection to ") + name); }
     
     virtual void onAddr(AddrMessage& addr);
     
     virtual void onSocketClosed(int code);
 };
 
-set<string> g_peers;
-map<string, unique_ptr<AddrListener> > g_connections;
+set<string> g_peerSet;
+queue<string> g_connectionQueue;
+map<string, unique_ptr<AddrListener> > g_connectionMap;
+
+boost::mutex insertion_deletion_mutex;
 
 void tryConnecting(const string& ip, uint16_t port, const string& nodeName)
 {
@@ -90,22 +97,27 @@ void tryConnecting(const string& ip, uint16_t port, const string& nodeName)
     try
     {
         stringstream ss;
-        ss << "Trying " << nodeName + "... " << "(# of open connections: " << g_connections.size() << ")";
+        ss << "Trying " << nodeName + "... " << "(# of open connections: " << g_connectionMap.size() << ", # of known peers: " << g_peerSet.size() << ")";
         lineOut(ss.str());
         pListener->start();
         lineOut(string("Opened connection to ") + nodeName);
-        g_connections[nodeName] = unique_ptr<AddrListener>(pListener);
+        {
+            boost::unique_lock<boost::mutex> lock(insertion_deletion_mutex);
+            g_connectionMap[nodeName] = unique_ptr<AddrListener>(pListener);
+            g_connectionQueue.push(nodeName); 
+            while (g_connectionQueue.size() > MAX_CONNECTIONS) {
+                string disconnectPeerName = g_connectionQueue.front();
+                g_connectionMap[disconnectPeerName]->stop();
+                g_connectionMap.erase(disconnectPeerName);
+                g_connectionQueue.pop();
+            }
+        }
         pListener->askForPeers();
     }
     catch (const exception& e)
     {
         delete pListener;
         lineOut(nodeName + " " + e.what());
-    }
-    catch (const char* what)
-    {
-        delete pListener;
-        lineOut(nodeName + " " + what);
     }
 }
 
@@ -125,7 +137,7 @@ void AddrListener::onAddr(AddrMessage& addr)
         
         string nodeName = getNodeName(ip, addr.addrList[i].port);
         nodeNames.push_back(nodeName);
-        g_peers.insert(nodeName);
+        g_peerSet.insert(nodeName);
     }
 
     if (nodeNames.size() == 0) return;
@@ -135,7 +147,7 @@ void AddrListener::onAddr(AddrMessage& addr)
     lineOut(ss.str());
     for (uint i = 0; i < nodeNames.size(); i++)
     {
-        if (g_connections.count(nodeNames[i]) == 0)
+        if (g_connectionMap.count(nodeNames[i]) == 0)
             boost::thread t(tryConnecting, ips[i], ports[i], nodeNames[i]);
     }
 }
@@ -145,7 +157,7 @@ void AddrListener::onSocketClosed(int code)
     stringstream ss;
     ss << "Closed connection to " << name << " with code " << code;
     lineOut(ss.str());
-    g_connections.erase(name);
+    g_connectionMap.erase(name);
 }
 
 int main(int argc, char* argv[])
