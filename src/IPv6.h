@@ -32,8 +32,6 @@
 #include <iomanip>
 #include <stdexcept>
 
-#include <iostream>
-
 class IPv6AddressException : public std::runtime_error
 {
 public:
@@ -61,6 +59,9 @@ public:
 
     std::string toString(bool bShorten = false) const;
     std::string toIPv4String() const;
+    std::string toStringAuto() const;
+
+    const unsigned char* getBytes() const { return bytes; }
 };
 
 void IPv6Address::set(const std::string& address)
@@ -82,7 +83,7 @@ void IPv6Address::set(const std::string& address)
                 throw IPv6AddressException("Invalid address");
 
             try {
-                byte = std::stoi(group);
+                byte = strtoul(group.c_str(), NULL, 10);
             }
             catch (const std::exception& e) {
                 throw IPv6AddressException("Invalid address");
@@ -110,7 +111,7 @@ void IPv6Address::set(const std::string& address)
 
         int bytepair;
         try {
-            bytepair = std::stoi(group, NULL, 16);
+            bytepair = strtoul(group.c_str(), NULL, 16);
         }
         catch (const std::exception& e) {
             throw IPv6AddressException("Invalid address");
@@ -150,6 +151,12 @@ std::string IPv6Address::toIPv4String() const
     std::stringstream ss;
     ss << (int)bytes[12] << "." << (int)bytes[13] << "." << (int)bytes[14] << "." << (int)bytes[15];
     return ss.str();
+}
+
+std::string IPv6Address::toStringAuto() const
+{
+    if (isIPv4()) return toIPv4String();
+    return toString();
 }
 
 #endif // IPV6_H_INCLUDED

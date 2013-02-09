@@ -210,19 +210,19 @@ void VarString::setSerialized(const uchar_vector& bytes)
 //
 // class NetworkAddress implementation
 //
-NetworkAddress::NetworkAddress(uint32_t time, uint64_t services, unsigned char ipv6[], uint16_t port)
+NetworkAddress::NetworkAddress(uint32_t time, uint64_t services, unsigned char ipv6_bytes[], uint16_t port)
 {
     this->time = time;
     this->services = services;
-    memcpy(this->ipv6, ipv6, 16);
+    this->ipv6 = ipv6_bytes;
     this->port = port;
     this->hasTime = true;
 }
 
-NetworkAddress::NetworkAddress(uint64_t services, const unsigned char ipv6[], uint16_t port)
+NetworkAddress::NetworkAddress(uint64_t services, const unsigned char ipv6_bytes[], uint16_t port)
 {
     this->services = services;
-    memcpy(this->ipv6, ipv6, 16);
+    this->ipv6 = ipv6_bytes;
     this->port = port;
     this->hasTime = false;
 }
@@ -232,7 +232,7 @@ NetworkAddress::NetworkAddress(const NetworkAddress& netaddr)
     this->time = netaddr.time;
     this->hasTime = netaddr.hasTime;
     this->services = netaddr.services;
-    memcpy(this->ipv6, netaddr.ipv6, 16);
+    this->ipv6 = netaddr.ipv6;
     this->port = netaddr.port;
 }
 
@@ -242,16 +242,16 @@ uchar_vector NetworkAddress::getSerialized() const
     if (this->hasTime)
         rval += uint_to_vch(this->time, _BIG_ENDIAN);
     rval += uint_to_vch(this->services, _BIG_ENDIAN);
-    uchar_vector ipv6vch(this->ipv6, 16);
+    uchar_vector ipv6vch(this->ipv6.getBytes(), 16);
     rval += ipv6vch;
     rval += uint_to_vch(this->port, _LITTLE_ENDIAN);
     return rval;
 }
 
-void NetworkAddress::set(uint64_t services, const unsigned char ipv6[], uint16_t port)
+void NetworkAddress::set(uint64_t services, const unsigned char ipv6_bytes[], uint16_t port)
 {
     this->services = services;
-    memcpy(this->ipv6, ipv6, 16);
+    this->ipv6 = ipv6_bytes;
     this->port = port;
     this->hasTime = false;
 }
@@ -269,7 +269,9 @@ void NetworkAddress::setSerialized(const uchar_vector& bytes)
     }
     this->services = vch_to_uint<uint64_t>(uchar_vector(bytes.begin() + pos, bytes.begin() + pos + sizeof(uint64_t)), _BIG_ENDIAN);
     pos += sizeof(uint64_t);
-    uchar_vector(bytes.begin() + pos, bytes.begin() + pos + 16).copyToArray((unsigned char*)this->ipv6);
+    unsigned char ipv6_bytes[16];
+    uchar_vector(bytes.begin() + pos, bytes.begin() + pos + 16).copyToArray(ipv6_bytes);
+    this->ipv6 = ipv6_bytes;
     pos += 16;
     this->port = vch_to_uint<uint16_t>(uchar_vector(bytes.begin() + pos, bytes.begin() + pos + sizeof(uint16_t)), _LITTLE_ENDIAN);
 }
@@ -279,7 +281,7 @@ string NetworkAddress::toString() const
     stringstream ss;
     if (this->hasTime)
         ss << "time: " << timeToString(this->time) << ", ";
-        ss << "services: " << this->services << ", ip: " << getFormattedIP(this->ipv6) << ", port: " << this->port;
+        ss << "services: " << this->services << ", ip: " << this->ipv6.toStringAuto() << ", port: " << this->port;
     return ss.str();
 }
 
@@ -289,41 +291,9 @@ string NetworkAddress::toIndentedString(uint spaces) const
     if (this->hasTime)
         ss << blankSpaces(spaces) << "time: " << timeToString(this->time) << endl;
     ss << blankSpaces(spaces) << "services: " << this->services << endl
-       << blankSpaces(spaces) << "ip: " << getFormattedIP(this->ipv6) << endl
+       << blankSpaces(spaces) << "ip: " << this->ipv6.toStringAuto() << endl
        << blankSpaces(spaces) << "port: " << this->port;
     return ss.str();
-}
-
-bool isIPv4(const unsigned char bytes[])
-{
-    uchar_vector ip(bytes, 16);
-    return ip[0]  == 0x00 &&
-           ip[1]  == 0x00 &&
-           ip[2]  == 0x00 &&
-           ip[3]  == 0x00 &&
-           ip[4]  == 0x00 &&
-           ip[5]  == 0x00 &&
-           ip[6]  == 0x00 &&
-           ip[7]  == 0x00 &&
-           ip[8]  == 0x00 &&
-           ip[9]  == 0x00 &&
-           ip[10] == 0xff &&
-           ip[11] == 0xff;
-}
-
-string getIPv4(const unsigned char bytes[])
-{
-    if (!isIPv4(bytes)) return "";
-    uchar_vector ip(bytes, 16);
-    stringstream ss;
-    ss << (int)ip[12] << "." << (int)ip[13] << "." << (int)ip[14] << "." << (int)ip[15];
-    return ss.str();
-}
-
-string getFormattedIP(const unsigned char bytes[])
-{
-    if (isIPv4(bytes)) return getIPv4(bytes);
-    return uchar_vector(bytes, 16).getHex(true);
 }
 
 ///////////////////////////////////////////////////////////////////////////////

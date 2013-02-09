@@ -27,6 +27,7 @@
 
 #include "uchar_vector.h"
 #include "hash.h"
+#include "IPv6.h"
 
 #include <stdio.h>
 #include <cstring>
@@ -65,10 +66,6 @@ const char* itemTypeToString(uint itemType);
 std::string timeToString(time_t time);
 
 std::string blankSpaces(uint n);
-
-bool isIPv4(const unsigned char bytes[]);
-std::string getIPv4(const unsigned char bytes[]);
-std::string getFormattedIP(const unsigned char bytes[]);
 
 extern uchar_vector g_zero32bytes;
 
@@ -160,17 +157,17 @@ class NetworkAddress : public CoinNodeStructure
 public:
     uint32_t time;
     uint64_t services;
-    unsigned char ipv6[16];
+    IPv6Address ipv6;
     uint16_t port;
     bool hasTime;
 
     NetworkAddress() { }
-    NetworkAddress(uint32_t time, uint64_t services, unsigned char ipv6[], uint16_t port);
-    NetworkAddress(uint64_t services, const unsigned char ipv6[], uint16_t port);
+    NetworkAddress(uint32_t time, uint64_t services, unsigned char ipv6_bytes[], uint16_t port);
+    NetworkAddress(uint64_t services, const unsigned char ipv6_bytes[], uint16_t port);
     NetworkAddress(const NetworkAddress& netaddr);
     NetworkAddress(const uchar_vector& bytes) { this->setSerialized(bytes); }
 
-    void set(uint64_t services, const unsigned char ipv6[], uint16_t port);
+    void set(uint64_t services, const unsigned char ipv6_bytes[], uint16_t port);
 	
     const char* getCommand() const { return ""; }
     uint64_t getSize() const { return hasTime ? 30 : 26; }
