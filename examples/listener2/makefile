@@ -2,6 +2,8 @@ SHELL=/bin/bash
 
 SRC_PATH=../../src
 
+CXX_FLAGS = -Wall -g -std=c++0x
+
 LIBS = \
 	-l pthread \
 	-l ssl \
@@ -17,11 +19,11 @@ OBJS = \
 all: listener2
 
 $(SRC_PATH)/obj/%.o: $(SRC_PATH)/%.cpp
-	$(CXX) -c -o $@ $< \
+	$(CXX) $(CXX_FLAGS) -c -o $@ $< \
 	-I$(SRC_PATH)
 
 listener2: $(OBJS:obj/%=$(SRC_PATH)/obj/%)
-	$(CXX) -o $@ listener2.cpp $^ \
+	$(CXX) $(CXX_FLAGS) -o $@ listener2.cpp $^ \
 	-I$(SRC_PATH) \
 	$(LIBS)
 

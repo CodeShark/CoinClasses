@@ -1,4 +1,8 @@
+SHELL=/bin/bash
+
 SRC_PATH=../../src
+
+CXX_FLAGS = -Wall -g -std=c++0x
 
 LIBS = \
 	-l ssl \
@@ -7,12 +11,12 @@ LIBS = \
 all: keygen
 
 $(SRC_PATH)/obj/CoinKey.o: $(SRC_PATH)/CoinKey.cpp
-	$(CXX) -c -o $(SRC_PATH)/obj/CoinKey.o \
+	$(CXX) $(CXX_FLAGS) -c -o $(SRC_PATH)/obj/CoinKey.o \
 	$(SRC_PATH)/CoinKey.cpp \
 	-I$(SRC_PATH)
 
 keygen: $(SRC_PATH)/obj/CoinKey.o
-	$(CXX) -o keygen \
+	$(CXX) $(CXX_FLAGS) -o keygen \
 	keygen.cpp $(SRC_PATH)/obj/CoinKey.o \
 	-I$(SRC_PATH) \
 	$(LIBS)
