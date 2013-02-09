@@ -55,8 +55,6 @@ public:
         name = ss.str();
     }
     
-    virtual void onBlock(CoinBlock& block) { }
-    virtual void onTx(Transaction& tx) { }
     virtual void onAddr(AddrMessage& addr);
     
     virtual void onSocketClosed(int code);

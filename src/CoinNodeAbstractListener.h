@@ -86,11 +86,11 @@ public:
     virtual void askForMempool();
     
     // Implement the following methods in a derived subclass.
-    virtual void onBlock(CoinBlock& block) = 0;
-    virtual void onTx(Transaction& tx) = 0;
-    virtual void onAddr(AddrMessage& addr) = 0;
+    virtual void onBlock(CoinBlock& block) { };
+    virtual void onTx(Transaction& tx) { };
+    virtual void onAddr(AddrMessage& addr) { };
     
-    virtual void onSocketClosed(int code) = 0;
+    virtual void onSocketClosed(int code) { };
 };
 
 }; // namespace Coin
