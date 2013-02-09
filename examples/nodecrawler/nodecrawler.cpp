@@ -89,7 +89,9 @@ void tryConnecting(const string& ip, uint16_t port, const string& nodeName)
 
     try
     {
-        lineOut(string("Trying ") + nodeName + "...");
+        stringstream ss;
+        ss << "Trying " << nodeName + "... " << "(# of open connections: " << g_connections.size() << ")";
+        lineOut(ss.str());
         pListener->start();
         lineOut(string("Opened connection to ") + nodeName);
         g_connections[nodeName] = unique_ptr<AddrListener>(pListener);
