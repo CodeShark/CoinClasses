@@ -8,7 +8,8 @@ LIBS = \
 	-l pthread \
 	-l ssl \
 	-l crypto \
-	-l boost_regex
+	-l boost_regex \
+        -l rt
 
 OBJS = \
     obj/IPv6.o \

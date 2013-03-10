@@ -89,6 +89,8 @@ public:
 class CoinNodeStructure
 {
 public:
+    virtual ~CoinNodeStructure() { }
+
     virtual const char* getCommand() const = 0;
     virtual uint64_t getSize() const = 0;
 
