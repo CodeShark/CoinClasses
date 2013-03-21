@@ -1197,7 +1197,7 @@ string TxOut::toIndentedString(uint spaces) const
 string TxOut::toJson() const
 {
     stringstream ss;
-    ss << "{\"amount\":" << satoshisToBtcString(this->value) << ",\"script\":\"" << this->scriptPubKey.getHex()
+    ss << "{\"amount\":" << satoshisToBtcString(this->value) << ",\"amount_int\":" << this->value << ",\"script\":\"" << this->scriptPubKey.getHex()
        << "\",\"address\":\"" << this->getAddress() << "\"}";
     return ss.str();
 }
