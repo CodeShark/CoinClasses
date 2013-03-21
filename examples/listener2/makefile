@@ -5,6 +5,7 @@ SRC_PATH=../../src
 CXX_FLAGS = -Wall -g -std=c++0x
 
 LIBS = \
+    -l rt \
 	-l pthread \
 	-l ssl \
 	-l crypto \
