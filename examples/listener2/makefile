@@ -2,7 +2,12 @@ SHELL=/bin/bash
 
 SRC_PATH=../../src
 
-CXX_FLAGS = -Wall -g -std=c++0x
+CXX_FLAGS = -Wall -std=c++0x
+ifdef DEBUG
+    CXX_FLAGS += -g
+else
+    CXX_FLAGS += -O3
+endif
 
 LIBS = \
     -l rt \
