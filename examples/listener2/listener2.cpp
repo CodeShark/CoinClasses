@@ -29,13 +29,28 @@
 using namespace std;
 using namespace Coin;
 
-// Change these to use a different network
+// Select the network
+
+#define USE_BITCOIN_NETWORK
+//#define USE_LITECOIN_NETWORK
+
 namespace listener_network
 {
+#if defined(USE_BITCOIN_NETWORK)
     const uint32_t MAGIC_BYTES = 0xd9b4bef9ul;
     const uint32_t PROTOCOL_VERSION = 60002;
-    const uint8_t ADDRESS_VERSION = 0x00;
-    const uint8_t MULTISIG_ADDRESS_VERSION = 0x05;
+    const uint32_t DEFAULT_PORT = 8333;
+    const uint8_t  ADDRESS_VERSION = 0x00;
+    const uint8_t  MULTISIG_ADDRESS_VERSION = 0x05;
+    const char*    NETWORK_NAME = "Bitcoin";
+#elif defined(USE_LITECOIN_NETWORK)
+    const uint32_t MAGIC_BYTES = 0xdbb6c0fbul;
+    const uint32_t PROTOCOL_VERSION = 60002;
+    const uint32_t DEFAULT_PORT = 9333;
+    const uint8_t  ADDRESS_VERSION = 0x30;
+    const uint8_t  MULTISIG_ADDRESS_VERSION = 0x05;
+    const char*    NETWORK_NAME = "Litecoin";
+#endif
 };
 
 class SimpleListener : public CoinNodeAbstractListener
@@ -93,8 +108,9 @@ void SimpleListener::onSocketClosed(int code)
 int main(int argc, char* argv[])
 {
     if (argc < 3) {
-        cout << "Usage: " << argv[0] << " <hostname> <port>" << endl
-             << "Example: " << argv[0] << " 127.0.0.1 8333" << endl;
+        cout << "Configured for " << listener_network::NETWORK_NAME << endl
+             << "  Usage: " << argv[0] << " <hostname> <port>" << endl
+             << "  Example: " << argv[0] << " 127.0.0.1 " << listener_network::DEFAULT_PORT << endl;
         return 0;
     }
 
