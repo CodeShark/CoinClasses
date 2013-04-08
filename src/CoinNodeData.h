@@ -651,6 +651,10 @@ public:
     void incrementNonce() { this->blockHeader.nonce++; }
 	
     uint64_t getTotalSent() const;
+
+    // Only supported for blocks version 2 or higher.
+    // Returns -1 for older blocks.
+    int64_t getHeight() const;
 };
 
 class HeadersMessage : public CoinNodeStructure

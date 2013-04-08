@@ -36,6 +36,8 @@
 #include <iomanip>
 #include <algorithm>
 
+#include <assert.h>
+
 using namespace Coin;
 using namespace std;
 
@@ -1072,7 +1074,7 @@ string TxIn::getAddress() const
 	
     uint nObjects = 0;
     uint i = 0;
-    uint pubkeyBegin;
+    uint pubkeyBegin = 0;
     while (i < scriptSig.size()) {
         nObjects++;
         pubkeyBegin = i + 1;
@@ -1495,12 +1497,14 @@ string CoinBlock::toString() const
 
 string CoinBlock::toIndentedString(uint spaces) const
 {
+    int64_t height = this->getHeight();
     stringstream ss;
     ss << blankSpaces(spaces) << "blockHeader:" << endl << this->blockHeader.toIndentedString(spaces + 2) << endl
        << blankSpaces(spaces) << "txs:";
     for (uint i = 0; i < this->txs.size(); i++) {
         ss << endl << blankSpaces(spaces + 2) << i << ":" << endl<< this->txs[i].toIndentedString(spaces + 4);
     }
+    if (height >= 0) ss << endl << blankSpaces(spaces) << "height: " << height;
     return ss.str();
 }
 
@@ -1528,6 +1532,24 @@ uint64_t CoinBlock::getTotalSent() const
     for (uint i = 0; i < this->txs.size(); i++)
         totalSent += this->txs[i].getTotalSent();
     return totalSent;
+}
+
+int64_t CoinBlock::getHeight() const
+{
+    if (this->blockHeader.version < 2) return -1;
+
+    assert(txs.size() > 0);
+    assert(txs[0].inputs.size() > 0);
+    assert(txs[0].inputs[0].scriptSig.size() > 0);
+    uint nBytes = (uint)txs[0].inputs[0].scriptSig[0];
+    assert(nBytes < txs[0].inputs[0].scriptSig.size());
+    int64_t height = 0;
+    int64_t coef = 1;
+    for (uint i = 1; i <= nBytes; i++) {
+        height += (int64_t)txs[0].inputs[0].scriptSig[i]*coef;
+        coef *= 256;
+    }
+    return height;
 }
 
 ///////////////////////////////////////////////////////////////////////////////

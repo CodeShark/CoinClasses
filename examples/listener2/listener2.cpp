@@ -125,6 +125,7 @@ int main(int argc, char* argv[])
         listener.start();
         cout << "started." << endl << endl;
         listener.askForPeers();
+        listener.askForBlock("00000000000000659abaa8a2fd7959af0615bc1a9f1b3e4069b2b52e61d21923");
     }
     catch (const exception& e)
     {
