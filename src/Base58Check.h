@@ -29,7 +29,8 @@
 #include "BigInt.h"
 #include "hash.h"
 
-const char base58chars[] = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz";
+#define BITCOIN_BASE58_CHARS "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz"
+#define RIPPLE_BASE58_CHARS  "rpshnaf39wBUDNEGHJKLM4PQRST7VWXYZ2bcdeCg65jkm8oFqi1tuvAxyz"
 
 // unsecure versions, suitable for public keys
 inline unsigned int countLeading0s(const std::vector<unsigned char>& data)
@@ -46,7 +47,7 @@ inline unsigned int countLeading0s(const std::string& numeral, char zeroSymbol)
     return i;
 }
 
-inline std::string toBase58Check(const std::vector<unsigned char>& payload, unsigned char version)
+inline std::string toBase58Check(const std::vector<unsigned char>& payload, unsigned char version, const char* _base58chars = BITCOIN_BASE58_CHARS)
 {
     uchar_vector data;
     data.push_back(version);                                        // prepend version byte
@@ -55,22 +56,22 @@ inline std::string toBase58Check(const std::vector<unsigned char>& payload, unsi
     checksum.assign(checksum.begin(), checksum.begin() + 4);        // compute checksum
     data += checksum;                                               // append checksum
     BigInt bn(data);
-    std::string base58check = bn.getInBase(58, base58chars);             // convert to base58
-    std::string leading0s(countLeading0s(data), base58chars[0]);         // prepend leading 0's (1 in base58)
+    std::string base58check = bn.getInBase(58, _base58chars);             // convert to base58
+    std::string leading0s(countLeading0s(data), _base58chars[0]);         // prepend leading 0's (1 in base58)
     return leading0s + base58check;
 }
 
 // fromBase58Check() - gets payload and version from a base58check string.
 //    returns true if valid.
 //    returns false and does not modify parameters if invalid.
-inline bool fromBase58Check(const std::string& base58check, std::vector<unsigned char>& payload, unsigned int& version)
+inline bool fromBase58Check(const std::string& base58check, std::vector<unsigned char>& payload, unsigned int& version, const char* _base58chars = BITCOIN_BASE58_CHARS)
 {
-    BigInt bn(base58check, 58, base58chars);                                // convert from base58
+    BigInt bn(base58check, 58, _base58chars);                                // convert from base58
     uchar_vector bytes = bn.getBytes();
     if (bytes.size() < 4) return false;                                     // not enough bytes
     uchar_vector checksum = uchar_vector(bytes.end() - 4, bytes.end());
     bytes.assign(bytes.begin(), bytes.end() - 4);                           // split string into payload part and checksum part
-    uchar_vector leading0s(countLeading0s(base58check, base58chars[0]), 0); // prepend leading 0's
+    uchar_vector leading0s(countLeading0s(base58check, _base58chars[0]), 0); // prepend leading 0's
     bytes = leading0s + bytes;
     uchar_vector hashBytes = sha256_2(bytes);
     hashBytes.assign(hashBytes.begin(), hashBytes.begin() + 4);
@@ -80,13 +81,13 @@ inline bool fromBase58Check(const std::string& base58check, std::vector<unsigned
     return true;
 }
 
-inline bool isBase58CheckValid(const std::string& base58check)
+inline bool isBase58CheckValid(const std::string& base58check, const char* _base58chars = BITCOIN_BASE58_CHARS)
 {
-    BigInt bn(base58check, 58, base58chars);                                // convert from base58
+    BigInt bn(base58check, 58, _base58chars);                                // convert from base58
     uchar_vector bytes = bn.getBytes();
     uchar_vector checksum = uchar_vector(bytes.end() - 4, bytes.end());
     bytes.assign(bytes.begin(), bytes.end() - 4);                           // split string into payload part and checksum part
-    uchar_vector leading0s(countLeading0s(base58check, base58chars[0]), 0); // prepend leading 0's
+    uchar_vector leading0s(countLeading0s(base58check, _base58chars[0]), 0); // prepend leading 0's
     bytes = leading0s + bytes;
     uchar_vector hashBytes = sha256_2(bytes);
     hashBytes.assign(hashBytes.begin(), hashBytes.begin() + 4);
