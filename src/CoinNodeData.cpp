@@ -1256,7 +1256,7 @@ uchar_vector Transaction::getSerialized(bool includeScriptSigLength) const
 void Transaction::setSerialized(const uchar_vector& bytes)
 {
     if (bytes.size() < MIN_TRANSACTION_SIZE)
-        throw runtime_error("Invalid data - Transaction too small.");
+        throw runtime_error(string("Invalid data - Transaction too small: ") + bytes.getHex());
 
     // version
     this->version = vch_to_uint<uint32_t>(uchar_vector(bytes.begin(), bytes.begin() + 4), _BIG_ENDIAN);
