@@ -24,6 +24,8 @@
 
 #include <StandardTransactions.h>
 #include <CoinKey.h>
+#include <numericdata.h>
+
 #include <map>
 #include <iostream>
 
@@ -122,14 +124,18 @@ std::string signtransaction(bool bHelp, params_t& params)
     multiSig.parseRedeemScript(uchar_vector("5221037d32081bf4a1be6e8f2d5dbb98ee9408bd0559988f4c5a779dc40d92b6251a8021021574b25c88eb3c407bf2f9d18221a6bf15bf69ed5c120012300706c141f966e952ae"));
 
     P2SHTxIn txIn(uchar_vector("a9c6269f61ddcf7a71a416976e8f8b96741ad7a6a6a2123adb48da04932e3ba1"), 1, multiSig.getRedeemScript());
-    txIn.scriptSig.push_back(0x00);
-    //txIn.scriptSig += multiSig.getRedeemScript();
-    txIn.scriptSig += claimedTxOut.scriptPubKey;
+    //txIn.scriptSig.clear();
+    //txIn.scriptSig.push_back(multiSig.getRedeemScript().size());
+    txIn.scriptSig = multiSig.getRedeemScript();
 
     Transaction tx;
     tx.addOutput(txOut);
     tx.addInput(txIn);
 
+    std::stringstream ss;
+    ss << "txTmp with appended code raw: " << (tx.getSerialized() + uint_to_vch(1, _BIG_ENDIAN)).getHex() << std::endl << std::endl;
+
+    ss << "hash with appended code: " << tx.getHashWithAppendedCode(1).getHex() << std::endl << std::endl;
     // Key 1 privkey: L3p7ZcTqgRRnyEDyGdHyvagGYJXdeYudyS47MAeEsVKCXRLTpXd9
     // Key 2 privkey: Kzu2FH651n94pMwLWs9NHi6aamoB9nWaH3D8EHyWgA93DxewZDoq
 
@@ -153,7 +159,6 @@ std::string signtransaction(bool bHelp, params_t& params)
     tx.clearInputs();
     tx.addInput(txIn);
 
-    std::stringstream ss;
     ss << "redeemScript: " << multiSig.toJson(true) << std::endl;
     ss << "txOut: " << txOut.toJson() << std::endl;
     ss << "txJson: " << tx.toJson() << std::endl;
