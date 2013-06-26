@@ -131,11 +131,12 @@ std::string signtransaction(bool bHelp, params_t& params)
     Transaction tx;
     tx.addOutput(txOut);
     tx.addInput(txIn);
+    uchar_vector hashToSign = tx.getHashWithAppendedCode(1);
 
     std::stringstream ss;
     ss << "txTmp with appended code raw: " << (tx.getSerialized() + uint_to_vch(1, _BIG_ENDIAN)).getHex() << std::endl << std::endl;
 
-    ss << "hash with appended code: " << tx.getHashWithAppendedCode(1).getHex() << std::endl << std::endl;
+    ss << "hash with appended code: " << hashToSign.getHex() << std::endl << std::endl;
     // Key 1 privkey: L3p7ZcTqgRRnyEDyGdHyvagGYJXdeYudyS47MAeEsVKCXRLTpXd9
     // Key 2 privkey: Kzu2FH651n94pMwLWs9NHi6aamoB9nWaH3D8EHyWgA93DxewZDoq
 
@@ -144,16 +145,16 @@ std::string signtransaction(bool bHelp, params_t& params)
     CoinKey key;
     if (!key.setWalletImport("L3p7ZcTqgRRnyEDyGdHyvagGYJXdeYudyS47MAeEsVKCXRLTpXd9"))
         throw std::runtime_error("Error setting first privkey.");
-    if (!key.sign(tx.getHashWithAppendedCode(1), sig1))
+    if (!key.sign(hashToSign, sig1))
         throw std::runtime_error("Error signing with first key.");
 
     if (!key.setWalletImport("Kzu2FH651n94pMwLWs9NHi6aamoB9nWaH3D8EHyWgA93DxewZDoq"))
         throw std::runtime_error("Error setting second privkey.");
-    if (!key.sign(tx.getHashWithAppendedCode(1), sig2))
+    if (!key.sign(hashToSign, sig2))
         throw std::runtime_error("Error signing with first key.");
 
-    txIn.addSig(sig2);
     txIn.addSig(sig1);
+    txIn.addSig(sig2);
     txIn.setScriptSig();
 
     tx.clearInputs();
