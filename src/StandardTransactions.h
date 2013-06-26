@@ -77,8 +77,8 @@ private:
 
 public:
     P2SHTxIn() { }
-    P2SHTxIn(const uchar_vector& _redeemScript) :
-        redeemScript(_redeemScript) { }
+    P2SHTxIn(const uchar_vector& outhash, uint32_t outindex, const uchar_vector& _redeemScript = uchar_vector(), uint32_t sequence = 0xffffffff) :
+        TxIn(OutPoint(outhash, outindex), "", sequence), redeemScript(_redeemScript) { }
 
     void setRedeemScript(const uchar_vector& redeemScript) { this->redeemScript = redeemScript; }
     const uchar_vector& getRedeemScript() const { return this->redeemScript; }
