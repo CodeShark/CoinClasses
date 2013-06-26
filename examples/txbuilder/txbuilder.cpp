@@ -23,14 +23,90 @@
 // THE SOFTWARE.
 
 #include <StandardTransactions.h>
-
+#include <map>
 #include <iostream>
 
 using namespace Coin;
-using namespace std;
 
+typedef std::vector<std::string>        params_t;
+typedef std::string                     (*fAction)(bool, params_t&);
+typedef std::map<std::string, fAction>  command_map_t;
+
+// Maps typed-in function names to function addresses
+command_map_t command_map;
+
+////////////////////////////////////
+//
+// Command Functions
+//
+std::string help(bool bHelp, params_t& params)
+{
+    if (bHelp || params.size() > 0) {
+        return "help - displays help information.";        
+    }
+
+    std::string result = "\n";
+    command_map_t::iterator it = command_map.begin();
+    for (; it != command_map.end(); ++it) {
+        result += it->second(true, params) + "\n";
+    }
+    return result;
+}
+
+std::string createMultiSig(bool bHelp, params_t& params)
+{
+    if (bHelp || params.size() < 2) {
+        return "createmultisig <nrequired> <key 1> [<key 2> <key 3> ...] - creates a multisignature address.";
+    }
+
+    return "";
+}
+
+///////////////////////////////////
+//
+// Initialization Functions
+//
+void initCommands()
+{
+    command_map.clear();
+    command_map["help"] = &help;
+    command_map["createmultisig"] = &createMultiSig;
+}
+
+void getParams(int argc, char* argv[], params_t& params)
+{
+    params.clear();
+    for (int i = 2; i < argc; i++) {
+        params.push_back(argv[i]);
+    }
+}
+
+//////////////////////////////////
+//
+// Main Program
+//
 int main(int argc, char* argv[])
 {
+    initCommands();
+    params_t params;
+
+    if (argc == 1) {
+        std::cout << help(true, params) << std::endl;
+        return 0;
+    }
+
+    std::string command = argv[1];
+    command_map_t::iterator it = command_map.find(command);
+    if (it == command_map.end()) {
+        std::cout << "Invalid command: " << command << std::endl;
+        std::cout << help(true, params) << std::endl;
+        return 0;
+    }
+
+    getParams(argc, argv, params);
+    std::cout << it->second(false, params) << std::endl;
+
+/*
     if (argc < 3) {
         cout << "Usage: " << argv[0] << " [address] [value]" << endl;
         return 0;
@@ -48,6 +124,6 @@ int main(int argc, char* argv[])
         cout << "Error: " << e.what() << endl;
         return -1;
     }
-
+*/
     return 0;
 }

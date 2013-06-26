@@ -66,4 +66,108 @@ void StandardTxOut::payToAddress(const std::string& address, uint64_t value, con
     this->value = value;
 }
 
+class P2SHTxIn : public TxIn
+{
+private:
+    uchar_vector redeemScript;
+    std::vector<uchar_vector> sigs;
+
+public:
+    P2SHTxIn() { }
+    P2SHTxIn(const uchar_vector& _redeemScript) :
+        redeemScript(_redeemScript) { }
+
+    void setRedeemScript(const uchar_vector& redeemScript) { this->redeemScript = redeemScript; }
+    const uchar_vector& getRedeemScript() const { return this->redeemScript; }
+
+    void clearSigs() { sigs.clear(); }
+    void addSig(const uchar_vector& sig) { sigs.push_back(sig); }
+
+    void setScriptSig();
+};
+
+void P2SHTxIn::setScriptSig()
+{
+}
+
+class MultiSigRedeemScript
+{
+private:
+    uint minSigs;
+    std::vector<uchar_vector> pubKeys;
+
+    uchar_vector redeemScript;
+    bool bUpdated;
+
+public:
+    MultiSigRedeemScript(uint minSigs = 1) :
+        bUpdated(false) { this->setMinSigs(minSigs); }
+
+    void setMinSigs(uint minSigs);
+    uint getMinSigs() const { return minSigs; }
+
+    void clearPubKeys() { pubKeys.clear(); this->bUpdated = false; }
+    void addPubKey(const uchar_vector& pubKey);
+    uint getPubKeyCount() const { return pubKeys.size(); }
+
+    uchar_vector getRedeemScript();
+    std::string getAddress(unsigned char version = BITCOIN_ADDRESS_VERSIONS[1],  const char* _base58chars = BITCOIN_BASE58_CHARS);
+};
+
+void MultiSigRedeemScript::setMinSigs(uint minSigs)
+{
+    if (minSigs < 1) {
+        throw std::runtime_error("At least one signature is required.");
+    }
+
+    if (minSigs > 16) {
+        throw std::runtime_error("At most 16 signatures are allowed.");
+    }
+
+    this->minSigs = minSigs;
+    this->bUpdated = false;
+}
+
+void MultiSigRedeemScript::addPubKey(const uchar_vector& pubKey)
+{
+    if (pubKeys.size() >= 16) {
+        throw std::runtime_error("Public key maximum of 16 already reached.");
+    }
+
+    if (pubKey.size() > 75) {
+        throw std::runtime_error("Public keys can be a maximum of 75 bytes.");
+    }
+
+    pubKeys.push_back(pubKey);
+    bUpdated = false;
+}
+
+uchar_vector MultiSigRedeemScript::getRedeemScript()
+{
+    if (!bUpdated) {
+        uint nKeys = pubKeys.size();
+
+        if (minSigs > nKeys) {
+            throw std::runtime_error("Insufficient public keys.");
+        }
+
+        redeemScript.clear();
+        redeemScript.push_back((unsigned char)minSigs);
+        for (uint i = 0; i < nKeys; i++) {
+            redeemScript.push_back(pubKeys[i].size());
+            redeemScript += pubKeys[i];
+        }
+        redeemScript.push_back((unsigned char)nKeys);
+        redeemScript.push_back(0xae); // OP_CHECKMULTISIG
+        bUpdated = true;
+    }
+
+    return redeemScript;
+}
+
+inline std::string MultiSigRedeemScript::getAddress(unsigned char version, const char* _base58chars)
+{
+    return toBase58Check(this->getRedeemScript(), version, _base58chars);
+}
+
 #endif // STANDARD_TRANSACTIONS_H__
