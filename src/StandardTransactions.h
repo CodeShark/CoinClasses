@@ -99,7 +99,7 @@ private:
     uint minSigs;
     std::vector<uchar_vector> pubKeys;
 
-    unsigned char addressVersion;
+    const unsigned char* addressVersions;
     const char* base58chars;
 
     mutable uchar_vector redeemScript;
@@ -107,30 +107,32 @@ private:
 
 public:
     MultiSigRedeemScript(uint minSigs = 1,
-                         unsigned char _addressVersion = BITCOIN_ADDRESS_VERSIONS[1],
+                         const unsigned char* _addressVersions = BITCOIN_ADDRESS_VERSIONS,
                          const char* _base58chars = BITCOIN_BASE58_CHARS) :
-        addressVersion(_addressVersion), base58chars(_base58chars), bUpdated(false) { this->setMinSigs(minSigs); }
+        addressVersions(_addressVersions), base58chars(_base58chars), bUpdated(false) { this->setMinKeys(minSigs); }
 
-    void setMinSigs(uint minSigs);
-    uint getMinSigs() const { return minSigs; }
+    void setMinKeys(uint minSigs);
+    uint getMinKeys() const { return minSigs; }
 
-    void setAddressType(unsigned char addressVersion, const char* base58chars = BITCOIN_BASE58_CHARS)
+    void setAddressTypes(const unsigned char* addressVersions, const char* base58chars = BITCOIN_BASE58_CHARS)
     {
-        this->addressVersion = addressVersion;
+        this->addressVersions = addressVersions;
         this->base58chars = base58chars;
     }
 
     void clearPubKeys() { pubKeys.clear(); this->bUpdated = false; }
     void addPubKey(const uchar_vector& pubKey);
     uint getPubKeyCount() const { return pubKeys.size(); }
+    std::vector<uchar_vector> getPubKeys() const { return pubKeys; }
 
+    void parseRedeemScript(const uchar_vector& redeemScript);
     uchar_vector getRedeemScript() const;
     std::string getAddress() const;
 
-    std::string toJson() const;
+    std::string toJson(bool bShowPubKeys = false) const;
 };
 
-void MultiSigRedeemScript::setMinSigs(uint minSigs)
+void MultiSigRedeemScript::setMinKeys(uint minSigs)
 {
     if (minSigs < 1) {
         throw std::runtime_error("At least one signature is required.");
@@ -156,6 +158,57 @@ void MultiSigRedeemScript::addPubKey(const uchar_vector& pubKey)
 
     pubKeys.push_back(pubKey);
     bUpdated = false;
+}
+
+void MultiSigRedeemScript::parseRedeemScript(const uchar_vector& redeemScript)
+{
+    if (redeemScript.size() < 3) {
+        throw std::runtime_error("Redeem script is too short.");
+    }
+
+    // OP_1 is 0x51, OP_16 is 0x60
+    unsigned char mSigs = redeemScript[0];
+    if (mSigs < 0x51 || mSigs > 0x60) {
+        throw std::runtime_error("Invalid signature minimum.");
+    }
+
+    unsigned char nKeys = 0x50;
+    uint i = 1;
+    std::vector<uchar_vector> _pubKeys;
+    while (true) {
+        unsigned char byte = redeemScript[i++];
+        if (i >= redeemScript.size()) {
+            throw std::runtime_error("Script terminates prematurely.");
+        }
+        if ((byte >= 0x51) && (byte <= 0x60)) {
+            // interpret byte as the signature counter.
+            if (byte != nKeys) {
+                throw std::runtime_error("Invalid signature count.");
+            }
+            if (nKeys < mSigs) {
+                throw std::runtime_error("The required signature minimum exceeds the number of keys.");
+            }
+            if (redeemScript[i++] != 0xae || i > redeemScript.size()) {
+                throw std::runtime_error("Invalid script termination.");
+            }
+            break;
+        }
+        // interpret byte as the pub key size
+        if ((byte > 0x4b) || (i + byte > redeemScript.size())) {
+            std::stringstream ss;
+            ss << "Invalid OP at byte " << i - 1 << ".";
+            throw std::runtime_error(ss.str());
+        }
+        nKeys++;
+        if (nKeys > 0x60) {
+            throw std::runtime_error("Public key maximum of 16 exceeded.");
+        }
+        _pubKeys.push_back(uchar_vector(redeemScript.begin() + i, redeemScript.begin() + i + byte));
+        i += byte;
+    }
+
+    minSigs = mSigs - 0x50;
+    pubKeys = _pubKeys;
 }
 
 uchar_vector MultiSigRedeemScript::getRedeemScript() const
@@ -184,13 +237,31 @@ uchar_vector MultiSigRedeemScript::getRedeemScript() const
 std::string MultiSigRedeemScript::getAddress() const
 {
     uchar_vector scriptHash = ripemd160(sha256(getRedeemScript()));
-    return toBase58Check(scriptHash, addressVersion, base58chars);
+    return toBase58Check(scriptHash, addressVersions[1], base58chars);
 }
 
-std::string MultiSigRedeemScript::toJson() const
+std::string MultiSigRedeemScript::toJson(bool bShowPubKeys) const
 {
+    uint nKeys = pubKeys.size();
     std::stringstream ss;
-    ss << "{\n\"    address\" : \"" << getAddress() << "\",\n    \"redeemScript\" : \"" << getRedeemScript().getHex() << "\"\n}";
+    ss <<   "{\n    \"m\" : " << minSigs
+       <<   ",\n    \"n\" : " << nKeys
+       <<   ",\n    \"address\" : \"" << getAddress()
+       << "\",\n    \"redeemScript\" : \"" << getRedeemScript().getHex() << "\"";
+    if (bShowPubKeys) {
+        ss << ",\n    \"pubKeys\" :\n    [";
+        for (uint i = 0; i < nKeys; i++) {
+            uchar_vector pubKeyHash = ripemd160(sha256(pubKeys[i]));
+            std::string address = toBase58Check(pubKeyHash, addressVersions[0], base58chars);
+            if (i > 0) ss << ",";
+            ss <<    "\n        {"
+               <<    "\n            \"address\" : \"" << address
+               << "\",\n            \"pubKey\" : \"" << pubKeys[i].getHex()
+               <<  "\"\n        }";
+        }
+        ss << "\n    ]";
+    }
+    ss << "\n}";
     return ss.str();
 }
 
