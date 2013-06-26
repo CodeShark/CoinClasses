@@ -53,13 +53,40 @@ std::string help(bool bHelp, params_t& params)
     return result;
 }
 
-std::string createMultiSig(bool bHelp, params_t& params)
+std::string createmultisig(bool bHelp, params_t& params)
 {
     if (bHelp || params.size() < 2) {
         return "createmultisig <nrequired> <key 1> [<key 2> <key 3> ...] - creates a multisignature address.";
     }
 
     return "";
+}
+
+std::string standardtxout(bool bHelp, params_t& params)
+{
+    if (bHelp || params.size() < 2 || params.size() > 3) {
+        return "standardtxout <address> <value> [options] - creates a standard transaction output. Use option -h for serialized hex.";
+    }
+
+    bool bHex = false;
+    if (params.size() == 3) {
+        if (params[2] == "-h") {
+            bHex = true;
+        }
+        else {
+            throw std::runtime_error(std::string("Invalid option: ") + params[2]);
+        }
+    }
+
+    StandardTxOut txOut;
+    txOut.payToAddress(params[0], strtoull(params[1].c_str(), NULL, 10));
+
+    if (bHex) {
+        return txOut.getSerialized().getHex();
+    }
+    else {
+        return txOut.toJson();
+    }
 }
 
 ///////////////////////////////////
@@ -70,7 +97,8 @@ void initCommands()
 {
     command_map.clear();
     command_map["help"] = &help;
-    command_map["createmultisig"] = &createMultiSig;
+    command_map["createmultisig"] = &createmultisig;
+    command_map["standardtxout"] = &standardtxout;
 }
 
 void getParams(int argc, char* argv[], params_t& params)
@@ -91,7 +119,7 @@ int main(int argc, char* argv[])
     params_t params;
 
     if (argc == 1) {
-        std::cout << help(true, params) << std::endl;
+        std::cout << help(false, params) << std::endl;
         return 0;
     }
 
@@ -104,8 +132,15 @@ int main(int argc, char* argv[])
     }
 
     getParams(argc, argv, params);
-    std::cout << it->second(false, params) << std::endl;
+    try {
+        std::cout << it->second(false, params) << std::endl;
+    }
+    catch (const std::exception& e) {
+        std::cout << "Error: " << e.what() << std::endl;
+        return -1;
+    }
 
+    return 0;
 /*
     if (argc < 3) {
         cout << "Usage: " << argv[0] << " [address] [value]" << endl;
@@ -125,5 +160,4 @@ int main(int argc, char* argv[])
         return -1;
     }
 */
-    return 0;
 }
