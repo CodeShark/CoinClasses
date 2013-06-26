@@ -99,6 +99,17 @@ public:
 
 void P2SHTxIn::setScriptSig()
 {
+    scriptSig.clear();
+    scriptSig.push_back(0x00); // OP_FALSE
+
+    for (uint i = 0; i < sigs.size(); i++) {
+        scriptSig.push_back(sigs[i].size() + 1);
+        scriptSig += sigs[i];
+        scriptSig.push_back(0x01); // hash type byte
+    }
+
+    scriptSig.push_back(redeemScript.size());
+    scriptSig += redeemScript;
 }
 
 class MultiSigRedeemScript

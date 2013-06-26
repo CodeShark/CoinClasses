@@ -23,6 +23,7 @@
 // THE SOFTWARE.
 
 #include <StandardTransactions.h>
+#include <CoinKey.h>
 #include <map>
 #include <iostream>
 
@@ -114,21 +115,50 @@ std::string signtransaction(bool bHelp, params_t& params)
     StandardTxOut txOut;
     txOut.payToAddress("1JnFGnYb9qM8N6wDMB2nZuVgSMGq4G4kWH", 9950000);
 
+    StandardTxOut claimedTxOut;
+    claimedTxOut.payToAddress("3MX3KwjQ4AVeNrNDsnoM7yVBHLjLct1ox1", 10000000);
+
     MultiSigRedeemScript multiSig;
     multiSig.parseRedeemScript(uchar_vector("5221037d32081bf4a1be6e8f2d5dbb98ee9408bd0559988f4c5a779dc40d92b6251a8021021574b25c88eb3c407bf2f9d18221a6bf15bf69ed5c120012300706c141f966e952ae"));
 
     P2SHTxIn txIn(uchar_vector("a9c6269f61ddcf7a71a416976e8f8b96741ad7a6a6a2123adb48da04932e3ba1"), 1, multiSig.getRedeemScript());
+    txIn.scriptSig.push_back(0x00);
+    //txIn.scriptSig += multiSig.getRedeemScript();
+    txIn.scriptSig += claimedTxOut.scriptPubKey;
 
     Transaction tx;
     tx.addOutput(txOut);
     tx.addInput(txIn);
 
-/*
+    // Key 1 privkey: L3p7ZcTqgRRnyEDyGdHyvagGYJXdeYudyS47MAeEsVKCXRLTpXd9
+    // Key 2 privkey: Kzu2FH651n94pMwLWs9NHi6aamoB9nWaH3D8EHyWgA93DxewZDoq
+
+    uchar_vector sig1, sig2;
+
+    CoinKey key;
+    if (!key.setWalletImport("L3p7ZcTqgRRnyEDyGdHyvagGYJXdeYudyS47MAeEsVKCXRLTpXd9"))
+        throw std::runtime_error("Error setting first privkey.");
+    if (!key.sign(tx.getHashWithAppendedCode(1), sig1))
+        throw std::runtime_error("Error signing with first key.");
+
+    if (!key.setWalletImport("Kzu2FH651n94pMwLWs9NHi6aamoB9nWaH3D8EHyWgA93DxewZDoq"))
+        throw std::runtime_error("Error setting second privkey.");
+    if (!key.sign(tx.getHashWithAppendedCode(1), sig2))
+        throw std::runtime_error("Error signing with first key.");
+
+    txIn.addSig(sig2);
+    txIn.addSig(sig1);
+    txIn.setScriptSig();
+
+    tx.clearInputs();
+    tx.addInput(txIn);
+
     std::stringstream ss;
     ss << "redeemScript: " << multiSig.toJson(true) << std::endl;
     ss << "txOut: " << txOut.toJson() << std::endl;
-    return ss.str();*/
-    return tx.toJson();
+    ss << "txJson: " << tx.toJson() << std::endl;
+    ss << "rawtx: " << tx.getSerialized().getHex() << std::endl;
+    return ss.str();
 }
 
 ///////////////////////////////////

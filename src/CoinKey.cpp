@@ -183,7 +183,7 @@ bool CoinKey::setPrivateKey(const uchar_vector_secure& privateKey)
         this->bSet = true;
         return true;
     }
-    else if (privateKey.size() == PRIVATE_KEY_LENGTH) {
+    else if ((privateKey.size() == PRIVATE_KEY_LENGTH) || (privateKey.size() == PRIVATE_KEY_LENGTH + 1)) {
         EC_KEY_free(this->pKey);
         this->pKey = EC_KEY_new_by_curve_name(EC_CURVE_NAME);
         if (this->pKey == NULL)
