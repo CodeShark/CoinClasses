@@ -69,16 +69,24 @@ void StandardTxOut::payToAddress(const std::string& address, uint64_t value, con
     this->value = value;
 }
 
-class P2SHTxIn : public TxIn
+class StandardTxIn : public TxIn
+{
+public:
+    StandardTxIn() { }
+    StandardTxIn(const uchar_vector& outhash, uint32_t outindex, uint32_t sequence) :
+        TxIn(OutPoint(outhash, outindex), "", sequence) { }
+};
+
+class P2SHTxIn : public StandardTxIn
 {
 private:
     uchar_vector redeemScript;
     std::vector<uchar_vector> sigs;
 
 public:
-    P2SHTxIn() { }
+    P2SHTxIn() : StandardTxIn() { }
     P2SHTxIn(const uchar_vector& outhash, uint32_t outindex, const uchar_vector& _redeemScript = uchar_vector(), uint32_t sequence = 0xffffffff) :
-        TxIn(OutPoint(outhash, outindex), "", sequence), redeemScript(_redeemScript) { }
+        StandardTxIn(outhash, outindex, sequence), redeemScript(_redeemScript) { }
 
     void setRedeemScript(const uchar_vector& redeemScript) { this->redeemScript = redeemScript; }
     const uchar_vector& getRedeemScript() const { return this->redeemScript; }

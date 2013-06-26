@@ -105,6 +105,32 @@ std::string standardtxout(bool bHelp, params_t& params)
     }
 }
 
+std::string signtransaction(bool bHelp, params_t& params)
+{
+    if (bHelp) {
+        return "signtransaction - not defined yet.";
+    }
+
+    StandardTxOut txOut;
+    txOut.payToAddress("1JnFGnYb9qM8N6wDMB2nZuVgSMGq4G4kWH", 9950000);
+
+    MultiSigRedeemScript multiSig;
+    multiSig.parseRedeemScript(uchar_vector("5221037d32081bf4a1be6e8f2d5dbb98ee9408bd0559988f4c5a779dc40d92b6251a8021021574b25c88eb3c407bf2f9d18221a6bf15bf69ed5c120012300706c141f966e952ae"));
+
+    P2SHTxIn txIn(uchar_vector("a9c6269f61ddcf7a71a416976e8f8b96741ad7a6a6a2123adb48da04932e3ba1"), 1, multiSig.getRedeemScript());
+
+    Transaction tx;
+    tx.addOutput(txOut);
+    tx.addInput(txIn);
+
+/*
+    std::stringstream ss;
+    ss << "redeemScript: " << multiSig.toJson(true) << std::endl;
+    ss << "txOut: " << txOut.toJson() << std::endl;
+    return ss.str();*/
+    return tx.toJson();
+}
+
 ///////////////////////////////////
 //
 // Initialization Functions
@@ -116,6 +142,7 @@ void initCommands()
     command_map["createmultisig"] = &createmultisig;
     command_map["standardtxout"] = &standardtxout;
     command_map["parsemultisigredeemscript"] = &parsemultisigredeemscript;
+    command_map["signtransaction"] = &signtransaction;
 }
 
 void getParams(int argc, char* argv[], params_t& params)
