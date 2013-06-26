@@ -27,6 +27,9 @@
 
 #include "CoinNodeData.h"
 #include "Base58Check.h"
+#include "hash.h"
+
+#include <sstream>
 
 const unsigned char BITCOIN_ADDRESS_VERSIONS[] = {0x00, 0x05};
 
@@ -96,22 +99,35 @@ private:
     uint minSigs;
     std::vector<uchar_vector> pubKeys;
 
-    uchar_vector redeemScript;
-    bool bUpdated;
+    unsigned char addressVersion;
+    const char* base58chars;
+
+    mutable uchar_vector redeemScript;
+    mutable bool bUpdated;
 
 public:
-    MultiSigRedeemScript(uint minSigs = 1) :
-        bUpdated(false) { this->setMinSigs(minSigs); }
+    MultiSigRedeemScript(uint minSigs = 1,
+                         unsigned char _addressVersion = BITCOIN_ADDRESS_VERSIONS[1],
+                         const char* _base58chars = BITCOIN_BASE58_CHARS) :
+        addressVersion(_addressVersion), base58chars(_base58chars), bUpdated(false) { this->setMinSigs(minSigs); }
 
     void setMinSigs(uint minSigs);
     uint getMinSigs() const { return minSigs; }
+
+    void setAddressType(unsigned char addressVersion, const char* base58chars = BITCOIN_BASE58_CHARS)
+    {
+        this->addressVersion = addressVersion;
+        this->base58chars = base58chars;
+    }
 
     void clearPubKeys() { pubKeys.clear(); this->bUpdated = false; }
     void addPubKey(const uchar_vector& pubKey);
     uint getPubKeyCount() const { return pubKeys.size(); }
 
-    uchar_vector getRedeemScript();
-    std::string getAddress(unsigned char version = BITCOIN_ADDRESS_VERSIONS[1],  const char* _base58chars = BITCOIN_BASE58_CHARS);
+    uchar_vector getRedeemScript() const;
+    std::string getAddress() const;
+
+    std::string toJson() const;
 };
 
 void MultiSigRedeemScript::setMinSigs(uint minSigs)
@@ -142,7 +158,7 @@ void MultiSigRedeemScript::addPubKey(const uchar_vector& pubKey)
     bUpdated = false;
 }
 
-uchar_vector MultiSigRedeemScript::getRedeemScript()
+uchar_vector MultiSigRedeemScript::getRedeemScript() const
 {
     if (!bUpdated) {
         uint nKeys = pubKeys.size();
@@ -152,12 +168,12 @@ uchar_vector MultiSigRedeemScript::getRedeemScript()
         }
 
         redeemScript.clear();
-        redeemScript.push_back((unsigned char)minSigs);
+        redeemScript.push_back((unsigned char)(minSigs + 0x50));
         for (uint i = 0; i < nKeys; i++) {
             redeemScript.push_back(pubKeys[i].size());
             redeemScript += pubKeys[i];
         }
-        redeemScript.push_back((unsigned char)nKeys);
+        redeemScript.push_back((unsigned char)(nKeys + 0x50));
         redeemScript.push_back(0xae); // OP_CHECKMULTISIG
         bUpdated = true;
     }
@@ -165,9 +181,17 @@ uchar_vector MultiSigRedeemScript::getRedeemScript()
     return redeemScript;
 }
 
-inline std::string MultiSigRedeemScript::getAddress(unsigned char version, const char* _base58chars)
+std::string MultiSigRedeemScript::getAddress() const
 {
-    return toBase58Check(this->getRedeemScript(), version, _base58chars);
+    uchar_vector scriptHash = ripemd160(sha256(getRedeemScript()));
+    return toBase58Check(scriptHash, addressVersion, base58chars);
+}
+
+std::string MultiSigRedeemScript::toJson() const
+{
+    std::stringstream ss;
+    ss << "{\n\"    address\" : \"" << getAddress() << "\",\n    \"redeemScript\" : \"" << getRedeemScript().getHex() << "\"\n}";
+    return ss.str();
 }
 
 #endif // STANDARD_TRANSACTIONS_H__

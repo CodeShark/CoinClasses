@@ -59,7 +59,12 @@ std::string createmultisig(bool bHelp, params_t& params)
         return "createmultisig <nrequired> <key 1> [<key 2> <key 3> ...] - creates a multisignature address.";
     }
 
-    return "";
+    MultiSigRedeemScript multiSig(strtoul(params[0].c_str(), NULL, 10));
+    int nKeys = params.size();
+    for (int i = 1; i < nKeys; i++) {
+        multiSig.addPubKey(params[i]);
+    }
+    return multiSig.toJson();
 }
 
 std::string standardtxout(bool bHelp, params_t& params)
