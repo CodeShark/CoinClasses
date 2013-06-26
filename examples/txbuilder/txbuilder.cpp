@@ -31,5 +31,23 @@ using namespace std;
 
 int main(int argc, char* argv[])
 {
-    cout << "hi" << endl;
+    if (argc < 3) {
+        cout << "Usage: " << argv[0] << " [address] [value]" << endl;
+        return 0;
+    }
+
+    string address = argv[1];
+    uint64_t value = strtoull(argv[2], NULL, 10);
+
+    try {
+        StandardTxOut txOut;
+        txOut.payToAddress(address, value);
+        cout << txOut.toString() << endl;
+    }
+    catch (const exception& e) {
+        cout << "Error: " << e.what() << endl;
+        return -1;
+    }
+
+    return 0;
 }
