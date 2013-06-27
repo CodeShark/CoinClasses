@@ -75,7 +75,43 @@ public:
     StandardTxIn() { }
     StandardTxIn(const uchar_vector& outhash, uint32_t outindex, uint32_t sequence) :
         TxIn(OutPoint(outhash, outindex), "", sequence) { }
+
+    virtual void clearSigs() = 0;
+    virtual void addSig(const uchar_vector& sig) = 0;
+
+    virtual void setScriptSig() = 0;
 };
+
+class P2AddressTxIn : public StandardTxIn
+{
+private:
+    uchar_vector pubKey;
+    uchar_vector sig;
+
+public:
+    P2AddressTxIn() : StandardTxIn() { }
+    P2AddressTxIn(const uchar_vector& outhash, uint32_t outindex, const uchar_vector& _pubKey = uchar_vector(), uint32_t sequence = 0xffffffff) :
+        StandardTxIn(outhash, outindex, sequence), pubKey(_pubKey) { }
+
+    void setPubKey(const uchar_vector& pubKey) { this->pubKey = pubKey; }
+    const uchar_vector& getPubKey() const { return this->pubKey; }
+
+    void clearSigs() { this->sig = ""; }
+    void addSig(const uchar_vector& sig) { this->sig = sig; }
+
+    void setScriptSig();
+};
+
+void P2AddressTxIn::setScriptSig()
+{
+    scriptSig.clear();
+    scriptSig.push_back(sig.size() + 1);
+    scriptSig += sig;
+    scriptSig.push_back(0x01); // SIGHASH_ALL
+
+    scriptSig.push_back(pubKey.size());
+    scriptSig += pubKey;
+}
 
 class P2SHTxIn : public StandardTxIn
 {

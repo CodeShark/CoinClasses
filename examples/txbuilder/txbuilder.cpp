@@ -126,6 +126,28 @@ std::string addoutput(bool bHelp, params_t& params)
     return tx.getSerialized().getHex();
 }
 
+// TODO : Make function detect input type automatically.
+std::string addp2addressinput(bool bHelp, params_t& params)
+{
+    if (bHelp || params.size() < 4 || params.size() > 5) {
+        return "addp2addressinput <txhex> <outhash> <outindex> <pubkey> [signature] - adds a standard pay-to-address input to a transaction with an optional signature. Pass empty string as txhex to create a new transaction.";
+    }
+
+    Transaction tx;
+    if (params[0] != "") {
+        tx.setSerialized(uchar_vector(params[0]));
+    }
+
+    P2AddressTxIn txIn(uchar_vector(params[1]), strtoul(params[2].c_str(), NULL, 10), params[3]);
+    if (params.size() == 5) {
+        txIn.addSig(uchar_vector(params[4]));
+    }
+    txIn.setScriptSig();
+
+    tx.addInput(txIn);
+    return tx.getSerialized().getHex();
+}
+
 std::string signtransaction(bool bHelp, params_t& params)
 {
     if (bHelp || params.size() < 6) {
@@ -193,6 +215,7 @@ void initCommands()
     command_map["standardtxout"] = &standardtxout;
     command_map["parsemultisigredeemscript"] = &parsemultisigredeemscript;
     command_map["addoutput"] = &addoutput;
+    command_map["addp2addressinput"] = &addp2addressinput;
     command_map["signtransaction"] = &signtransaction;
 }
 
