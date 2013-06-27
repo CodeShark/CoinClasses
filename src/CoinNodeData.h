@@ -57,7 +57,8 @@ void SetMultiSigAddressVersion(unsigned char version);
 #define MIN_OUT_POINT_SIZE           36
 #define MIN_TX_IN_SIZE               41
 #define MIN_TX_OUT_SIZE               9
-#define MIN_TRANSACTION_SIZE         59
+//#define MIN_TRANSACTION_SIZE         59
+#define MIN_TRANSACTION_SIZE         10 // blank transaction
 #define MIN_COIN_BLOCK_HEADER_SIZE   80
 #define MIN_COIN_BLOCK_SIZE         140
 

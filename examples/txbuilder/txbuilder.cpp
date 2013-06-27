@@ -108,6 +108,24 @@ std::string standardtxout(bool bHelp, params_t& params)
     }
 }
 
+std::string addoutput(bool bHelp, params_t& params)
+{
+    if (bHelp || params.size() != 3) {
+        return "addoutput <txhex> <address> <value> - add a standard output to a transaction. Pass empty string as txhex to create a new transaction.";
+    }
+
+    Transaction tx;
+    if (params[0] != "") {
+        tx.setSerialized(uchar_vector(params[0]));
+    }
+
+    StandardTxOut txOut;
+    txOut.payToAddress(params[1], strtoull(params[2].c_str(), NULL, 10));
+
+    tx.addOutput(txOut);
+    return tx.getSerialized().getHex();
+}
+
 std::string signtransaction(bool bHelp, params_t& params)
 {
     if (bHelp || params.size() < 6) {
@@ -174,6 +192,7 @@ void initCommands()
     command_map["createmultisig"] = &createmultisig;
     command_map["standardtxout"] = &standardtxout;
     command_map["parsemultisigredeemscript"] = &parsemultisigredeemscript;
+    command_map["addoutput"] = &addoutput;
     command_map["signtransaction"] = &signtransaction;
 }
 
