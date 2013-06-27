@@ -110,61 +110,57 @@ std::string standardtxout(bool bHelp, params_t& params)
 
 std::string signtransaction(bool bHelp, params_t& params)
 {
-    if (bHelp) {
-        return "signtransaction - not defined yet.";
+    if (bHelp || params.size() < 6) {
+        return "signtransaction <outhash> <outindex> <redeemscript> <toaddress> <value> <privkey1> [<privkey2> <privkey3> ...] - creates and signs a transaction claiming a multisignature input.";
+    }
+
+    uchar_vector outHash = params[0];
+    uint outIndex = strtoul(params[1].c_str(), NULL, 10);
+    uchar_vector redeemScript = params[2];
+    std::string toAddress = params[3];
+    uint64_t value = strtoull(params[4].c_str(), NULL, 10);
+
+    std::vector<std::string> privKeys;
+    for (uint i = 5; i < params.size(); i++) {
+        privKeys.push_back(params[i]);
     }
 
     StandardTxOut txOut;
-    txOut.payToAddress("1JnFGnYb9qM8N6wDMB2nZuVgSMGq4G4kWH", 9950000);
-
-    StandardTxOut claimedTxOut;
-    claimedTxOut.payToAddress("3MX3KwjQ4AVeNrNDsnoM7yVBHLjLct1ox1", 10000000);
+    txOut.payToAddress(toAddress, value);
 
     MultiSigRedeemScript multiSig;
-    multiSig.parseRedeemScript(uchar_vector("5221037d32081bf4a1be6e8f2d5dbb98ee9408bd0559988f4c5a779dc40d92b6251a8021021574b25c88eb3c407bf2f9d18221a6bf15bf69ed5c120012300706c141f966e952ae"));
+    multiSig.parseRedeemScript(redeemScript);
 
-    P2SHTxIn txIn(uchar_vector("a9c6269f61ddcf7a71a416976e8f8b96741ad7a6a6a2123adb48da04932e3ba1"), 1, multiSig.getRedeemScript());
-    //txIn.scriptSig.clear();
-    //txIn.scriptSig.push_back(multiSig.getRedeemScript().size());
+    P2SHTxIn txIn(outHash, outIndex, multiSig.getRedeemScript());
     txIn.scriptSig = multiSig.getRedeemScript();
 
     Transaction tx;
     tx.addOutput(txOut);
     tx.addInput(txIn);
-    uchar_vector hashToSign = tx.getHashWithAppendedCode(1);
+    uchar_vector hashToSign = tx.getHashWithAppendedCode(1); // SIGHASH_ALL
 
-    std::stringstream ss;
-    ss << "txTmp with appended code raw: " << (tx.getSerialized() + uint_to_vch(1, _BIG_ENDIAN)).getHex() << std::endl << std::endl;
-
-    ss << "hash with appended code: " << hashToSign.getHex() << std::endl << std::endl;
-    // Key 1 privkey: L3p7ZcTqgRRnyEDyGdHyvagGYJXdeYudyS47MAeEsVKCXRLTpXd9
-    // Key 2 privkey: Kzu2FH651n94pMwLWs9NHi6aamoB9nWaH3D8EHyWgA93DxewZDoq
-
-    uchar_vector sig1, sig2;
-
+    // TODO: make sure to wipe all key data if there's any failure
     CoinKey key;
-    if (!key.setWalletImport("L3p7ZcTqgRRnyEDyGdHyvagGYJXdeYudyS47MAeEsVKCXRLTpXd9"))
-        throw std::runtime_error("Error setting first privkey.");
-    if (!key.sign(hashToSign, sig1))
-        throw std::runtime_error("Error signing with first key.");
+    for (uint i = 5; i < params.size(); i++) {
+        if (!key.setWalletImport(params[i])) {
+            std::stringstream ss;
+            ss << "Private key " << i+1 << " is invalid.";
+            throw std::runtime_error(ss.str());
+        }
 
-    if (!key.setWalletImport("Kzu2FH651n94pMwLWs9NHi6aamoB9nWaH3D8EHyWgA93DxewZDoq"))
-        throw std::runtime_error("Error setting second privkey.");
-    if (!key.sign(hashToSign, sig2))
-        throw std::runtime_error("Error signing with first key.");
+        uchar_vector sig;
+        if (!key.sign(hashToSign, sig)) {
+            std::stringstream ss;
+            ss << "Error signing with key " << i+1 << ".";
+            throw std::runtime_error(ss.str());
+        }
+        txIn.addSig(sig);
+    }
 
-    txIn.addSig(sig1);
-    txIn.addSig(sig2);
     txIn.setScriptSig();
-
     tx.clearInputs();
     tx.addInput(txIn);
-
-    ss << "redeemScript: " << multiSig.toJson(true) << std::endl;
-    ss << "txOut: " << txOut.toJson() << std::endl;
-    ss << "txJson: " << tx.toJson() << std::endl;
-    ss << "rawtx: " << tx.getSerialized().getHex() << std::endl;
-    return ss.str();
+    return tx.getSerialized().getHex();
 }
 
 ///////////////////////////////////
