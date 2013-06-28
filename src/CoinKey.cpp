@@ -248,8 +248,9 @@ bool CoinKey::setPublicKey(const uchar_vector& publicKey)
     return true;
 }
 
-uchar_vector CoinKey::getPublicKey() const
+uchar_vector CoinKey::getPublicKey(bool bCompressed) const
 {
+    EC_KEY_set_conv_form(this->pKey, bCompressed ? POINT_CONVERSION_COMPRESSED : POINT_CONVERSION_UNCOMPRESSED);
     int nSize = i2o_ECPublicKey(this->pKey, NULL);
     if (nSize == 0)
         throw CoinKeyError("CoinKey::getPublicKey() : i2o_ECPublicKey failed");

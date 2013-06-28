@@ -352,7 +352,7 @@ public:
     void clearSigs();
     void addSig(const uchar_vector& pubKey, const uchar_vector& sig, SigHashType sigHashType = SIGHASH_ALL);
 
-    void setScriptSig(ScriptSigType scriptSigType) { } 
+    void setScriptSig(ScriptSigType scriptSigType);
 };
 
 void MofNTxIn::setRedeemScript(const MultiSigRedeemScript& redeemScript)
@@ -377,6 +377,7 @@ void MofNTxIn::addPubKey(const uchar_vector& pubKey)
     mapPubKeyToSig[pubKey] = uchar_vector();
 }
 
+// TODO: verify it->second can be set
 void MofNTxIn::clearSigs()
 {
     std::map<uchar_vector, uchar_vector>::iterator it = mapPubKeyToSig.begin();
@@ -390,13 +391,41 @@ void MofNTxIn::addSig(const uchar_vector& pubKey, const uchar_vector& sig, SigHa
     std::map<uchar_vector, uchar_vector>::iterator it;
     it = mapPubKeyToSig.find(pubKey);
     if (it == mapPubKeyToSig.end()) {
-        throw std::runtime_error("PubKey not yet added.");
+        std::stringstream ss;
+        ss << "PubKey " << pubKey.getHex() << " not yet added.";
+        throw std::runtime_error(ss.str());
     }
 
     uchar_vector _sig = sig;
     _sig.push_back(sigHashType);
     mapPubKeyToSig[pubKey] = _sig;
 }
+
+void MofNTxIn::setScriptSig(ScriptSigType scriptSigType)
+{
+    if (scriptSigType == SCRIPT_SIG_BROADCAST || scriptSigType == SCRIPT_SIG_EDIT) {
+        scriptSig.clear();
+        scriptSig.push_back(0x00); // OP_FALSE
+
+        for (uint i = 0; i < pubKeys.size(); i++) {
+            uchar_vector sig = mapPubKeyToSig[pubKeys[i]];
+            if (sig.size() > 0 || scriptSigType == SCRIPT_SIG_EDIT) {
+                scriptSig.push_back(sig.size());
+                scriptSig += sig;
+            }
+        }
+    }
+
+    MultiSigRedeemScript redeemScript(minSigs);
+    for (uint i = 0; i < pubKeys.size(); i++) {
+        redeemScript.addPubKey(pubKeys[i]);
+    }
+    
+    scriptSig.push_back(redeemScript.getRedeemScript().size());
+    scriptSig += redeemScript.getRedeemScript();    
+}
+
+
 
 class P2SHTxIn : public StandardTxIn
 {

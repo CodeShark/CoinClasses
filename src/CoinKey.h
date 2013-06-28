@@ -82,7 +82,7 @@ public:
     string_secure getWalletImport() const;
 
     bool setPublicKey(const uchar_vector& publicKey);
-    uchar_vector getPublicKey() const;
+    uchar_vector getPublicKey(bool bCompressed = true) const;
 
     std::string getAddress() const;
 
