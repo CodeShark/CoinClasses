@@ -98,7 +98,7 @@ std::string standardtxout(bool bHelp, params_t& params)
     }
 
     StandardTxOut txOut;
-    txOut.payToAddress(params[0], strtoull(params[1].c_str(), NULL, 10));
+    txOut.set(params[0], strtoull(params[1].c_str(), NULL, 10));
 
     if (bHex) {
         return txOut.getSerialized().getHex();
@@ -120,7 +120,7 @@ std::string addoutput(bool bHelp, params_t& params)
     }
 
     StandardTxOut txOut;
-    txOut.payToAddress(params[1], strtoull(params[2].c_str(), NULL, 10));
+    txOut.set(params[1], strtoull(params[2].c_str(), NULL, 10));
 
     tx.addOutput(txOut);
     return tx.getSerialized().getHex();
@@ -140,9 +140,9 @@ std::string addp2addressinput(bool bHelp, params_t& params)
 
     P2AddressTxIn txIn(uchar_vector(params[1]), strtoul(params[2].c_str(), NULL, 10), params[3]);
     if (params.size() == 5) {
-        txIn.addSig(uchar_vector(params[4]));
+        txIn.addSig(uchar_vector(params[3]), uchar_vector(params[4]));
     }
-    txIn.setScriptSig();
+    txIn.setScriptSig(SCRIPT_SIG_EDIT);
 
     tx.addInput(txIn);
     return tx.getSerialized().getHex();
@@ -166,7 +166,7 @@ std::string signtransaction(bool bHelp, params_t& params)
     }
 
     StandardTxOut txOut;
-    txOut.payToAddress(toAddress, value);
+    txOut.set(toAddress, value);
 
     MultiSigRedeemScript multiSig;
     multiSig.parseRedeemScript(redeemScript);
@@ -194,10 +194,10 @@ std::string signtransaction(bool bHelp, params_t& params)
             ss << "Error signing with key " << i+1 << ".";
             throw std::runtime_error(ss.str());
         }
-        txIn.addSig(sig);
+        txIn.addSig(params[i], sig);
     }
 
-    txIn.setScriptSig();
+    txIn.setScriptSig(SCRIPT_SIG_BROADCAST);
     tx.clearInputs();
     tx.addInput(txIn);
     return tx.getSerialized().getHex();
@@ -259,23 +259,4 @@ int main(int argc, char* argv[])
     }
 
     return 0;
-/*
-    if (argc < 3) {
-        cout << "Usage: " << argv[0] << " [address] [value]" << endl;
-        return 0;
-    }
-
-    string address = argv[1];
-    uint64_t value = strtoull(argv[2], NULL, 10);
-
-    try {
-        StandardTxOut txOut;
-        txOut.payToAddress(address, value);
-        cout << txOut.toString() << endl;
-    }
-    catch (const exception& e) {
-        cout << "Error: " << e.what() << endl;
-        return -1;
-    }
-*/
 }

@@ -29,6 +29,7 @@
 #include "Base58Check.h"
 #include "hash.h"
 
+#include <map>
 #include <sstream>
 
 const unsigned char BITCOIN_ADDRESS_VERSIONS[] = {0x00, 0x05};
@@ -38,12 +39,11 @@ using namespace Coin;
 class StandardTxOut : public TxOut
 {
 public:
-    StandardTxOut() { }
-
-    void payToAddress(const std::string& address, uint64_t value, const unsigned char addressVersions[] = BITCOIN_ADDRESS_VERSIONS);
+    void set(const std::string& address, uint64_t value, const unsigned char addressVersions[] = BITCOIN_ADDRESS_VERSIONS);
 };
 
-void StandardTxOut::payToAddress(const std::string& address, uint64_t value, const unsigned char addressVersions[])
+
+void StandardTxOut::set(const std::string& address, uint64_t value, const unsigned char addressVersions[])
 {
     uchar_vector pubKeyHash;
     uint version;
@@ -69,17 +69,28 @@ void StandardTxOut::payToAddress(const std::string& address, uint64_t value, con
     this->value = value;
 }
 
+enum ScriptSigType { SCRIPT_SIG_BROADCAST, SCRIPT_SIG_EDIT, SCRIPT_SIG_SIGN };
+enum SigHashType {
+    SIGHASH_ALL             = 0x01,
+    SIGHASH_NONE            = 0x02,
+    SIGHASH_SINGLE          = 0x03,
+    SIGHASH_ANYONECANPAY    = 0x80
+};
+
 class StandardTxIn : public TxIn
 {
 public:
     StandardTxIn() { }
-    StandardTxIn(const uchar_vector& outhash, uint32_t outindex, uint32_t sequence) :
-        TxIn(OutPoint(outhash, outindex), "", sequence) { }
+    StandardTxIn(const uchar_vector& _outhash, uint32_t _outindex, uint32_t _sequence) :
+        TxIn(OutPoint(_outhash, _outindex), "", _sequence) { }
+
+    virtual void clearPubKeys() = 0;
+    virtual void addPubKey(const uchar_vector& _pubKey) = 0;
 
     virtual void clearSigs() = 0;
-    virtual void addSig(const uchar_vector& sig) = 0;
+    virtual void addSig(const uchar_vector& _pubKey, const uchar_vector& _sig, SigHashType sigHashType) = 0;
 
-    virtual void setScriptSig() = 0;
+    virtual void setScriptSig(ScriptSigType scriptSigType) = 0;
 };
 
 class P2AddressTxIn : public StandardTxIn
@@ -90,63 +101,61 @@ private:
 
 public:
     P2AddressTxIn() : StandardTxIn() { }
-    P2AddressTxIn(const uchar_vector& outhash, uint32_t outindex, const uchar_vector& _pubKey = uchar_vector(), uint32_t sequence = 0xffffffff) :
-        StandardTxIn(outhash, outindex, sequence), pubKey(_pubKey) { }
+    P2AddressTxIn(const uchar_vector& _outhash, uint32_t _outindex, const uchar_vector& _pubKey = uchar_vector(), uint32_t _sequence = 0xffffffff) :
+        StandardTxIn(_outhash, _outindex, _sequence), pubKey(_pubKey) { }
 
-    void setPubKey(const uchar_vector& pubKey) { this->pubKey = pubKey; }
-    const uchar_vector& getPubKey() const { return this->pubKey; }
+    void clearPubKeys() { pubKey.clear(); }
+    void addPubKey(const uchar_vector& _pubKey);
 
     void clearSigs() { this->sig = ""; }
-    void addSig(const uchar_vector& sig) { this->sig = sig; }
+    void addSig(const uchar_vector& _pubKey, const uchar_vector& _sig, SigHashType sigHashType = SIGHASH_ALL);
 
-    void setScriptSig();
+    void setScriptSig(ScriptSigType scriptSigType);
 };
 
-void P2AddressTxIn::setScriptSig()
+void P2AddressTxIn::addPubKey(const uchar_vector& _pubKey)
 {
-    scriptSig.clear();
-    scriptSig.push_back(sig.size() + 1);
-    scriptSig += sig;
-    scriptSig.push_back(0x01); // SIGHASH_ALL
-
-    scriptSig.push_back(pubKey.size());
-    scriptSig += pubKey;
+    if (pubKey.size() > 0) {
+        throw std::runtime_error("PubKey already added.");
+    }
+    pubKey = _pubKey;
 }
 
-class P2SHTxIn : public StandardTxIn
+void P2AddressTxIn::addSig(const uchar_vector& _pubKey, const uchar_vector& _sig, SigHashType sigHashType)
 {
-private:
-    uchar_vector redeemScript;
-    std::vector<uchar_vector> sigs;
-
-public:
-    P2SHTxIn() : StandardTxIn() { }
-    P2SHTxIn(const uchar_vector& outhash, uint32_t outindex, const uchar_vector& _redeemScript = uchar_vector(), uint32_t sequence = 0xffffffff) :
-        StandardTxIn(outhash, outindex, sequence), redeemScript(_redeemScript) { }
-
-    void setRedeemScript(const uchar_vector& redeemScript) { this->redeemScript = redeemScript; }
-    const uchar_vector& getRedeemScript() const { return this->redeemScript; }
-
-    void clearSigs() { sigs.clear(); }
-    void addSig(const uchar_vector& sig) { sigs.push_back(sig); }
-
-    void setScriptSig();
-};
-
-void P2SHTxIn::setScriptSig()
-{
-    scriptSig.clear();
-    scriptSig.push_back(0x00); // OP_FALSE
-
-    for (uint i = 0; i < sigs.size(); i++) {
-        scriptSig.push_back(sigs[i].size() + 1);
-        scriptSig += sigs[i];
-        scriptSig.push_back(0x01); // hash type byte
+    if (pubKey.size() == 0) {
+        throw std::runtime_error("No PubKey added yet.");
     }
 
-    scriptSig.push_back(redeemScript.size());
-    scriptSig += redeemScript;
+    if (_pubKey != pubKey) {
+        throw std::runtime_error("PubKey not part of input.");
+    }
+
+    sig = _sig;
+    sig.push_back(sigHashType);
 }
+
+void P2AddressTxIn::setScriptSig(ScriptSigType scriptSigType)
+{
+    scriptSig.clear();
+
+    if (scriptSigType == SCRIPT_SIG_SIGN) {
+        scriptSig.push_back(0x76);
+        scriptSig.push_back(0xa9);
+        scriptSig.push_back(0x14);
+        scriptSig += ripemd160(sha256(pubKey));
+        scriptSig.push_back(0x88);
+        scriptSig.push_back(0xac);
+    }
+    else {
+        scriptSig.push_back(sig.size()); // includes SigHashType
+        scriptSig += sig;
+
+        scriptSig.push_back(pubKey.size());
+        scriptSig += pubKey;
+    }
+}
+
 
 class MultiSigRedeemScript
 {
@@ -161,13 +170,14 @@ private:
     mutable bool bUpdated;
 
 public:
+    MultiSigRedeemScript(const uchar_vector& redeemScript) { parseRedeemScript(redeemScript); }
     MultiSigRedeemScript(uint minSigs = 1,
                          const unsigned char* _addressVersions = BITCOIN_ADDRESS_VERSIONS,
                          const char* _base58chars = BITCOIN_BASE58_CHARS) :
-        addressVersions(_addressVersions), base58chars(_base58chars), bUpdated(false) { this->setMinKeys(minSigs); }
+        addressVersions(_addressVersions), base58chars(_base58chars), bUpdated(false) { this->setMinSigs(minSigs); }
 
-    void setMinKeys(uint minSigs);
-    uint getMinKeys() const { return minSigs; }
+    void setMinSigs(uint minSigs);
+    uint getMinSigs() const { return minSigs; }
 
     void setAddressTypes(const unsigned char* addressVersions, const char* base58chars = BITCOIN_BASE58_CHARS)
     {
@@ -187,7 +197,7 @@ public:
     std::string toJson(bool bShowPubKeys = false) const;
 };
 
-void MultiSigRedeemScript::setMinKeys(uint minSigs)
+void MultiSigRedeemScript::setMinSigs(uint minSigs)
 {
     if (minSigs < 1) {
         throw std::runtime_error("At least one signature is required.");
@@ -318,6 +328,162 @@ std::string MultiSigRedeemScript::toJson(bool bShowPubKeys) const
     }
     ss << "\n}";
     return ss.str();
+}
+
+
+class MofNTxIn : public StandardTxIn
+{
+private:
+    uint minSigs;
+
+    std::map<uchar_vector, uchar_vector> mapPubKeyToSig;
+    std::vector<uchar_vector> pubKeys;
+
+public:
+    MofNTxIn() : StandardTxIn() { minSigs = 0; }
+    MofNTxIn(const uchar_vector& outhash, uint32_t outindex, const MultiSigRedeemScript& redeemScript = MultiSigRedeemScript(), uint32_t _sequence = 0xffffffff) :
+        StandardTxIn(outhash, outindex, sequence) { setRedeemScript(redeemScript); }
+
+    void setRedeemScript(const MultiSigRedeemScript& redeemScript);
+
+    void clearPubKeys() { mapPubKeyToSig.clear(); pubKeys.clear(); }
+    void addPubKey();
+
+    void clearSigs() { }
+    void addSig(const uchar_vector& _pubKey, const uchar_vector& _sig, SigHashType sigHashType) { }
+
+    void setScriptSig(ScriptSigType scriptSigType) { } 
+};
+
+void MofNTxIn::setRedeemScript(const MultiSigRedeemScript& redeemScript)
+{
+    minSigs = redeemScript.getMinSigs();
+    pubKeys = redeemScript.getPubKeys();
+
+    mapPubKeyToSig.clear();
+    for (uint i = 0; i < pubKeys.size(); i++) {
+        mapPubKeyToSig[pubKeys[i]] = uchar_vector();
+    }
+}
+
+void MofNTxIn::addPubKey()
+{
+}
+
+class P2SHTxIn : public StandardTxIn
+{
+private:
+    uchar_vector redeemScript;
+    
+    std::vector<uchar_vector> sigs;
+
+public:
+    P2SHTxIn() : StandardTxIn() { }
+    P2SHTxIn(const uchar_vector& outhash, uint32_t outindex, const uchar_vector& _redeemScript = uchar_vector(), uint32_t sequence = 0xffffffff) :
+        StandardTxIn(outhash, outindex, sequence), redeemScript(_redeemScript) { }
+
+    void setRedeemScript(const uchar_vector& redeemScript) { this->redeemScript = redeemScript; }
+    const uchar_vector& getRedeemScript() const { return this->redeemScript; }
+
+    void clearPubKeys() { }
+    void addPubKey(const uchar_vector& pubKey) { }
+
+    void clearSigs() { sigs.clear(); }
+    void addSig(const uchar_vector& pubKey, const uchar_vector& sig, SigHashType sigHashType = SIGHASH_ALL)
+    {
+        uchar_vector _sig = sig;
+        _sig.push_back(sigHashType);
+        sigs.push_back(_sig);
+    }
+
+    void setScriptSig(ScriptSigType scriptSigType);
+};
+
+void P2SHTxIn::setScriptSig(ScriptSigType scriptSigType)
+{
+    scriptSig.clear();
+    scriptSig.push_back(0x00); // OP_FALSE
+
+    for (uint i = 0; i < sigs.size(); i++) {
+        scriptSig.push_back(sigs[i].size());
+        scriptSig += sigs[i];
+    }
+
+    scriptSig.push_back(redeemScript.size());
+    scriptSig += redeemScript;
+}
+
+
+
+class TransactionBuilder
+{
+private:
+    uint32_t version;
+    std::vector<StandardTxIn*> inputs;
+    std::vector<StandardTxOut*> outputs;
+    uint32_t lockTime;
+
+public:
+    TransactionBuilder() { }
+    TransactionBuilder(const Transaction& tx) { this->setTx(tx); }
+    
+    ~TransactionBuilder();
+
+    void clearInputs();
+    void clearOutputs();
+
+    void setTx(const Transaction& tx);
+};
+
+void TransactionBuilder::setTx(const Transaction& tx)
+{
+    version = tx.version;
+    lockTime = tx.lockTime;
+    clearInputs();
+    clearOutputs();
+
+    for (uint i = 0; i < tx.inputs.size(); i++) {
+        std::vector<uchar_vector> objects;
+        uint s = 0;
+        while (s < tx.inputs[i].scriptSig.size()) {
+            uint start = s + 1;
+            uint end = s + tx.inputs[i].scriptSig[s] + 1;
+            if (end > tx.inputs[i].scriptSig.size()) {
+                std::stringstream ss;
+                ss << "Tried to push object that exceeeds scriptSig size in input " << i;
+                throw std::runtime_error(ss.str());
+            }
+            objects.push_back(uchar_vector(tx.inputs[i].scriptSig.begin() + start, tx.inputs[i].scriptSig.begin() + end));
+            s = end;
+        }
+
+        if (objects.size() == 2) {
+            P2AddressTxIn* pTxIn = new P2AddressTxIn();
+            inputs.push_back(pTxIn); 
+        }
+    } 
+}
+
+void TransactionBuilder::clearInputs()
+{
+    for (uint i = 0; i < inputs.size(); i++) {
+        delete inputs[i];
+    }
+    inputs.clear();
+}
+
+void TransactionBuilder::clearOutputs()
+{
+    for (uint i = 0; i < outputs.size(); i++) {
+        delete outputs[i];
+    }
+    outputs.clear();
+}
+
+TransactionBuilder::~TransactionBuilder()
+{
+    clearInputs();
+    clearOutputs();
 }
 
 #endif // STANDARD_TRANSACTIONS_H__
