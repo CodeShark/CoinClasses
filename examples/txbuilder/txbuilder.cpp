@@ -130,7 +130,7 @@ std::string addoutput(bool bHelp, params_t& params)
 std::string addp2addressinput(bool bHelp, params_t& params)
 {
     if (bHelp || params.size() < 4 || params.size() > 5) {
-        return "addp2addressinput <txhex> <outhash> <outindex> <pubkey> [signature] - adds a standard pay-to-address input to a transaction with an optional signature. Pass empty string as txhex to create a new transaction.";
+        return "addp2addressinput <txhex> <outhash> <outindex> <pubkey> [sequence = 0xffffffff] - adds a standard pay-to-address input to a transaction with an optional signature. Pass empty string as txhex to create a new transaction.";
     }
 
     Transaction tx;
@@ -138,10 +138,8 @@ std::string addp2addressinput(bool bHelp, params_t& params)
         tx.setSerialized(uchar_vector(params[0]));
     }
 
-    P2AddressTxIn txIn(uchar_vector(params[1]), strtoul(params[2].c_str(), NULL, 10), params[3]);
-    if (params.size() == 5) {
-        txIn.addSig(uchar_vector(params[3]), uchar_vector(params[4]));
-    }
+    uint32_t sequence = (params.size() == 5) ? strtoul(params[4].c_str(), NULL, 0) : 0xffffffff;
+    P2AddressTxIn txIn(params[1], strtoul(params[2].c_str(), NULL, 10), params[3], sequence);
     txIn.setScriptSig(SCRIPT_SIG_EDIT);
 
     tx.addInput(txIn);
@@ -165,6 +163,24 @@ std::string addmofninput(bool bHelp, params_t& params)
 
     tx.addInput(txIn);
     return tx.getSerialized().getHex();
+}
+
+std::string sign(bool bHelp, params_t& params)
+{
+    if (bHelp || params.size() < 4 || params.size() > 5) {
+        return "sign <txhex> <index> <pubkey> <privkey> [sighashtype = 0x01] - sign and add signature to input.";
+    }
+
+    Transaction tx;
+    tx.setSerialized(uchar_vector(params[0]));
+
+    SigHashType sigHashType =
+        (params.size() == 5) ? static_cast<SigHashType>(strtoul(params[4].c_str(), NULL, 0)) : SIGHASH_ALL;
+
+    TransactionBuilder txBuilder(tx);
+    txBuilder.sign(strtoul(params[1].c_str(), NULL, 10), params[2], params[3], sigHashType);
+
+    return txBuilder.getTx(SCRIPT_SIG_EDIT).getSerialized().getHex();
 }
 
 std::string createtransaction(bool bHelp, params_t& params)
@@ -342,13 +358,14 @@ void initCommands()
     command_map.clear();
     command_map["help"] = &help;
     command_map["createmultisig"] = &createmultisig;
-    command_map["standardtxout"] = &standardtxout;
+//    command_map["standardtxout"] = &standardtxout;
     command_map["parsemultisigredeemscript"] = &parsemultisigredeemscript;
     command_map["addoutput"] = &addoutput;
     command_map["addp2addressinput"] = &addp2addressinput;
     command_map["addmofninput"] = &addmofninput;
-    command_map["createtransaction"] = &createtransaction;
-    command_map["signmofn"] = &signmofn;
+    command_map["sign"] = &sign;
+//    command_map["createtransaction"] = &createtransaction;
+//    command_map["signmofn"] = &signmofn;
     command_map["getmissingsigs"] = &getmissingsigs;
 }
 

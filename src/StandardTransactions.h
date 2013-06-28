@@ -22,11 +22,15 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
 
+// Note: bUpdated = false for mutable fields iff internal state is inconsistent.
+//       bUpdated = true if internal state has been updated.
+
 #ifndef STANDARD_TRANSACTIONS_H__
 #define STANDARD_TRANSACTIONS_H__
 
 #include "CoinNodeData.h"
 #include "Base58Check.h"
+#include "CoinKey.h"
 #include "hash.h"
 
 #include <map>
@@ -106,6 +110,9 @@ uint32_t bytesPushData(const uchar_vector& script, uint& pos)
 class StandardTxOut : public TxOut
 {
 public:
+    StandardTxOut() { }
+    StandardTxOut(const TxOut& txOut) : TxOut(txOut) { }
+
     void set(const std::string& address, uint64_t value, const unsigned char addressVersions[] = BITCOIN_ADDRESS_VERSIONS);
 };
 
@@ -606,8 +613,10 @@ public:
     void clearOutputs();
 
     void setTx(const Transaction& tx);
+    Transaction getTx(ScriptSigType scriptSigType) const;
 
     std::string getMissingSigsJson() const;
+    void sign(uint index, const uchar_vector& pubKey, const std::string& privKey, SigHashType sigHashType = SIGHASH_ALL);
 };
 
 void TransactionBuilder::setTx(const Transaction& tx)
@@ -664,7 +673,31 @@ void TransactionBuilder::setTx(const Transaction& tx)
             ss << "Nonstandard script in input " << i << ".";
             throw std::runtime_error(ss.str());
         }
-    } 
+    }
+
+    for (uint i = 0; i < tx.outputs.size(); i++) {
+        StandardTxOut* pTxOut = new StandardTxOut(tx.outputs[i]);
+        outputs.push_back(pTxOut);
+    }
+}
+
+// TODO: make this more efficient - avoid unnecessary reallocations and copies
+Transaction TransactionBuilder::getTx(ScriptSigType scriptSigType) const
+{
+    Transaction tx;
+    tx.version = version;
+    tx.lockTime = lockTime;
+
+    for (uint i = 0; i < inputs.size(); i++) {
+        inputs[i]->setScriptSig(scriptSigType);
+        tx.addInput(*inputs[i]);
+    }
+
+    for (uint i = 0; i < outputs.size(); i++) {
+        tx.addOutput(*outputs[i]);
+    }
+
+    return tx;
 }
 
 std::string TransactionBuilder::getMissingSigsJson() const
@@ -690,21 +723,46 @@ std::string TransactionBuilder::getMissingSigsJson() const
     return ss.str();
 }
 
+void TransactionBuilder::sign(uint index, const uchar_vector& pubKey, const std::string& privKey, SigHashType sigHashType)
+{
+    if (index > inputs.size() - 1) {
+        throw std::runtime_error("Invalid input index.");
+    }
+
+    Transaction tx = getTx(SCRIPT_SIG_SIGN);
+    uchar_vector hashToSign = tx.getHashWithAppendedCode(sigHashType);
+
+    CoinKey key;
+    if (!key.setWalletImport(privKey)) {
+        throw std::runtime_error("Invalid private key.");
+    }
+
+    uchar_vector sig;
+    if (!key.sign(hashToSign, sig)) {
+        throw std::runtime_error("Signing failed.");
+    }
+
+    inputs[index]->addSig(pubKey, sig, sigHashType);
+}
 
 void TransactionBuilder::clearInputs()
 {
-    for (uint i = 0; i < inputs.size(); i++) {
-        delete inputs[i];
+    if (inputs.size() > 0) {
+        for (uint i = 0; i < inputs.size(); i++) {
+            delete inputs[i];
+        }
+        inputs.clear();
     }
-    inputs.clear();
 }
 
 void TransactionBuilder::clearOutputs()
 {
-    for (uint i = 0; i < outputs.size(); i++) {
-        delete outputs[i];
+    if (outputs.size() > 0) {
+        for (uint i = 0; i < outputs.size(); i++) {
+            delete outputs[i];
+        }
+        outputs.clear();
     }
-    outputs.clear();
 }
 
 TransactionBuilder::~TransactionBuilder()
