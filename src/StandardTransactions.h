@@ -36,7 +36,8 @@ const unsigned char BITCOIN_ADDRESS_VERSIONS[] = {0x00, 0x05};
 
 using namespace Coin;
 
-// TODO: write the inverse function and use these throughout the code
+// TODO: Move opPushData and bytesPushData to a script manipulation module and use them
+// wherever scripts are accessed.
 uchar_vector opPushData(uint32_t nBytes)
 {
     uchar_vector rval;
@@ -61,6 +62,45 @@ uchar_vector opPushData(uint32_t nBytes)
     }
 
     return rval;
+}
+
+uint32_t bytesPushData(const uchar_vector& script, uint& pos)
+{
+    if (pos >= script.size()) {
+        throw std::runtime_error("Script pos past end.");
+    }
+
+    unsigned char op = script[pos++];
+    if (op <= 0x4b) {
+        return (uint32_t)op;
+    }
+    else if (op == 0x4c) {
+        if (pos >= script.size()) {
+            throw std::runtime_error("Script pos past end.");
+        }
+        return (uint32_t)script[pos++];
+    }
+    else if (op == 0x4d) {
+        if (pos + 1 >= script.size()) {
+            throw std::runtime_error("Script pos past end.");
+        }
+        uint32_t rval = (uint32_t)script[pos++] << 8;
+        rval         += (uint32_t)script[pos++];
+        return rval;
+    }
+    else if (op == 0x4e) {
+        if (pos + 3 >= script.size()) {
+            throw std::runtime_error("Script pos past end.");
+        }
+        uint32_t rval = (uint32_t)script[pos++] << 24;
+        rval         += (uint32_t)script[pos++] << 16;
+        rval         += (uint32_t)script[pos++] << 8;
+        rval         += (uint32_t)script[pos++];
+        return rval;
+    }
+    else {
+        throw std::runtime_error("Operation is not push data.");
+    }
 }
 
 class StandardTxOut : public TxOut
@@ -108,6 +148,7 @@ class StandardTxIn : public TxIn
 {
 public:
     StandardTxIn() { }
+    StandardTxIn(const TxIn& txIn) : TxIn(txIn) { }
     StandardTxIn(const uchar_vector& _outhash, uint32_t _outindex, uint32_t _sequence) :
         TxIn(OutPoint(_outhash, _outindex), "", _sequence) { }
 
@@ -116,6 +157,7 @@ public:
 
     virtual void clearSigs() = 0;
     virtual void addSig(const uchar_vector& _pubKey, const uchar_vector& _sig, SigHashType sigHashType) = 0;
+    virtual void getPubKeysMissingSig(std::vector<uchar_vector>& pubKeys, uint& minSigsStillNeeded) const = 0;
 
     virtual void setScriptSig(ScriptSigType scriptSigType) = 0;
 };
@@ -128,6 +170,7 @@ private:
 
 public:
     P2AddressTxIn() : StandardTxIn() { }
+    P2AddressTxIn(const TxIn& txIn) : StandardTxIn(txIn) { }
     P2AddressTxIn(const uchar_vector& _outhash, uint32_t _outindex, const uchar_vector& _pubKey = uchar_vector(), uint32_t _sequence = 0xffffffff) :
         StandardTxIn(_outhash, _outindex, _sequence), pubKey(_pubKey) { }
 
@@ -136,6 +179,17 @@ public:
 
     void clearSigs() { this->sig = ""; }
     void addSig(const uchar_vector& _pubKey, const uchar_vector& _sig, SigHashType sigHashType = SIGHASH_ALL);
+    void getPubKeysMissingSig(std::vector<uchar_vector>& pubKeys, uint& minSigsStillNeeded) const
+    {
+        pubKeys.clear();
+        if (sig.size() > 0) {
+            minSigsStillNeeded = 0;
+        }
+        else {
+            minSigsStillNeeded = 1;
+            pubKeys.push_back(pubKey);
+        }
+    }
 
     void setScriptSig(ScriptSigType scriptSigType);
 };
@@ -378,6 +432,7 @@ public:
 
     void clearSigs();
     void addSig(const uchar_vector& pubKey, const uchar_vector& sig, SigHashType sigHashType = SIGHASH_ALL);
+    void getPubKeysMissingSig(std::vector<uchar_vector>& pubKeys, uint& minSigsStillNeeded) const;
 
     void setScriptSig(ScriptSigType scriptSigType);
 };
@@ -426,6 +481,25 @@ void MofNTxIn::addSig(const uchar_vector& pubKey, const uchar_vector& sig, SigHa
     uchar_vector _sig = sig;
     _sig.push_back(sigHashType);
     mapPubKeyToSig[pubKey] = _sig;
+}
+
+void MofNTxIn::getPubKeysMissingSig(std::vector<uchar_vector>& pubKeys, uint& minSigsStillNeeded) const
+{
+    pubKeys.clear();
+
+    uint nSigs;
+    for (uint i = 0; i < this->pubKeys.size(); i++) {
+        // at() might throw an out_of_range exception if pubKey is not found,
+        // but this condition should never occur.
+        if (mapPubKeyToSig.at(this->pubKeys[i]).size() > 0) {
+            nSigs++;
+        }
+        else {
+            pubKeys.push_back(this->pubKeys[i]);
+        }
+    }
+
+    minSigsStillNeeded = (nSigs > minSigs) ? 0 : (minSigs - nSigs);
 }
 
 void MofNTxIn::setScriptSig(ScriptSigType scriptSigType)
@@ -479,6 +553,7 @@ public:
         _sig.push_back(sigHashType);
         sigs.push_back(_sig);
     }
+    void getPubKeysMissingSig(std::vector<uchar_vector>& pubKeys, uint& minSigsStillNeeded) const { }
 
     void setScriptSig(ScriptSigType scriptSigType);
 };
@@ -536,20 +611,39 @@ void TransactionBuilder::setTx(const Transaction& tx)
         std::vector<uchar_vector> objects;
         uint s = 0;
         while (s < tx.inputs[i].scriptSig.size()) {
-            uint start = s + 1;
-            uint end = s + tx.inputs[i].scriptSig[s] + 1;
-            if (end > tx.inputs[i].scriptSig.size()) {
+            uint size = bytesPushData(tx.inputs[i].scriptSig, s);
+            if (s + size > tx.inputs[i].scriptSig.size()) {
                 std::stringstream ss;
-                ss << "Tried to push object that exceeeds scriptSig size in input " << i;
+                ss << "Tried to push object that exceeeds scriptSig size in input " << i << ".";
                 throw std::runtime_error(ss.str());
             }
-            objects.push_back(uchar_vector(tx.inputs[i].scriptSig.begin() + start, tx.inputs[i].scriptSig.begin() + end));
-            s = end;
+            objects.push_back(uchar_vector(tx.inputs[i].scriptSig.begin() + s, tx.inputs[i].scriptSig.begin() + s + size));
+            s += size;
         }
 
         if (objects.size() == 2) {
-            P2AddressTxIn* pTxIn = new P2AddressTxIn();
+            // P2Address
+            P2AddressTxIn* pTxIn = new P2AddressTxIn(tx.inputs[i]);
+            pTxIn->addPubKey(objects[1]);
+            if (objects[0].size() > 0) {
+                pTxIn->addSig(objects[1], objects[0]);
+            }            
             inputs.push_back(pTxIn); 
+        }
+        else if (objects.size() >= 3 && objects[0].size() == 0) {
+            // MofN
+            MultiSigRedeemScript multiSig(objects.back());
+            if (multiSig.getMinSigs() < objects.size() - 2) {
+                std::stringstream ss;
+                ss << "Insufficient signatures in input " << i << ".";
+                throw std::runtime_error(ss.str());
+            }
+            
+        }
+        else {
+            std::stringstream ss;
+            ss << "Nonstandard script in input " << i << ".";
+            throw std::runtime_error(ss.str());
         }
     } 
 }
