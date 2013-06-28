@@ -36,6 +36,33 @@ const unsigned char BITCOIN_ADDRESS_VERSIONS[] = {0x00, 0x05};
 
 using namespace Coin;
 
+// TODO: write the inverse function and use these throughout the code
+uchar_vector opPushData(uint32_t nBytes)
+{
+    uchar_vector rval;
+    if (nBytes <= 0x4b) {
+        rval.push_back((unsigned char)nBytes);
+    }
+    else if (nBytes <= 0xff) {
+        rval.push_back(0x4c);
+        rval.push_back((unsigned char)nBytes);
+    }
+    else if (nBytes <= 0xffff) {
+        rval.push_back(0x4d);
+        rval.push_back((unsigned char)(nBytes >> 8));
+        rval.push_back((unsigned char)(nBytes & 0xff));
+    }
+    else {
+        rval.push_back(0x4e);
+        rval.push_back((unsigned char)(nBytes >> 24));
+        rval.push_back((unsigned char)((nBytes >> 16) & 0xff));
+        rval.push_back((unsigned char)((nBytes >> 8) & 0xff));
+        rval.push_back((unsigned char)(nBytes & 0xff));
+    }
+
+    return rval;
+}
+
 class StandardTxOut : public TxOut
 {
 public:
@@ -148,10 +175,10 @@ void P2AddressTxIn::setScriptSig(ScriptSigType scriptSigType)
         scriptSig.push_back(0xac);
     }
     else {
-        scriptSig.push_back(sig.size()); // includes SigHashType
+        scriptSig += opPushData(sig.size()); // includes SigHashType
         scriptSig += sig;
 
-        scriptSig.push_back(pubKey.size());
+        scriptSig += opPushData(pubKey.size());
         scriptSig += pubKey;
     }
 }
@@ -410,7 +437,7 @@ void MofNTxIn::setScriptSig(ScriptSigType scriptSigType)
         for (uint i = 0; i < pubKeys.size(); i++) {
             uchar_vector sig = mapPubKeyToSig[pubKeys[i]];
             if (sig.size() > 0 || scriptSigType == SCRIPT_SIG_EDIT) {
-                scriptSig.push_back(sig.size());
+                scriptSig += opPushData(sig.size());
                 scriptSig += sig;
             }
         }
@@ -421,7 +448,7 @@ void MofNTxIn::setScriptSig(ScriptSigType scriptSigType)
         redeemScript.addPubKey(pubKeys[i]);
     }
     
-    scriptSig.push_back(redeemScript.getRedeemScript().size());
+    scriptSig += opPushData(redeemScript.getRedeemScript().size());
     scriptSig += redeemScript.getRedeemScript();    
 }
 
@@ -459,14 +486,20 @@ public:
 void P2SHTxIn::setScriptSig(ScriptSigType scriptSigType)
 {
     scriptSig.clear();
-    scriptSig.push_back(0x00); // OP_FALSE
 
-    for (uint i = 0; i < sigs.size(); i++) {
-        scriptSig.push_back(sigs[i].size());
-        scriptSig += sigs[i];
+    if (scriptSigType == SCRIPT_SIG_BROADCAST || scriptSigType == SCRIPT_SIG_EDIT) {
+        scriptSig.push_back(0x00); // OP_FALSE
+
+        for (uint i = 0; i < sigs.size(); i++) {
+            if (sigs[i].size() > 0 || scriptSigType == SCRIPT_SIG_EDIT) {
+                scriptSig += opPushData(sigs[i].size());
+                scriptSig += sigs[i];
+            }
+        }
+
+        scriptSig += opPushData(redeemScript.size());
     }
 
-    scriptSig.push_back(redeemScript.size());
     scriptSig += redeemScript;
 }
 

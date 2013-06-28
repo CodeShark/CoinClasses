@@ -172,7 +172,7 @@ std::string signtransaction(bool bHelp, params_t& params)
     multiSig.parseRedeemScript(redeemScript);
 
     P2SHTxIn txIn(outHash, outIndex, multiSig.getRedeemScript());
-    txIn.scriptSig = multiSig.getRedeemScript();
+    txIn.setScriptSig(SCRIPT_SIG_SIGN);
 
     Transaction tx;
     tx.addOutput(txOut);
@@ -194,7 +194,7 @@ std::string signtransaction(bool bHelp, params_t& params)
             ss << "Error signing with key " << i+1 << ".";
             throw std::runtime_error(ss.str());
         }
-        txIn.addSig(params[i], sig);
+        txIn.addSig(uchar_vector(), sig);
     }
 
     txIn.setScriptSig(SCRIPT_SIG_BROADCAST);
