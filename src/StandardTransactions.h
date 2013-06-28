@@ -255,6 +255,7 @@ private:
 
 public:
     MultiSigRedeemScript(const uchar_vector& redeemScript) { parseRedeemScript(redeemScript); }
+    MultiSigRedeemScript(const std::string& redeemScript) { parseRedeemScript(uchar_vector(redeemScript)); }
     MultiSigRedeemScript(uint minSigs = 1,
                          const unsigned char* _addressVersions = BITCOIN_ADDRESS_VERSIONS,
                          const char* _base58chars = BITCOIN_BASE58_CHARS) :

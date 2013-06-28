@@ -148,6 +148,25 @@ std::string addp2addressinput(bool bHelp, params_t& params)
     return tx.getSerialized().getHex();
 }
 
+std::string addmofninput(bool bHelp, params_t& params)
+{
+    if (bHelp || params.size() < 4 || params.size() > 5) {
+        return "addmofninput <txhex> <outhash> <outindex> <redeemscript> [sequence = 0xffffffff] - adds an m-of-n input to transaction.";
+    }
+
+    Transaction tx;
+    if (params[0] != "") {
+        tx.setSerialized(uchar_vector(params[0]));
+    }
+
+    uint32_t sequence = (params.size() == 5) ? strtoul(params[4].c_str(), NULL, 0) : 0xffffffff;
+    MofNTxIn txIn(params[1], strtoul(params[2].c_str(), NULL, 10), params[3], sequence);
+    txIn.setScriptSig(SCRIPT_SIG_EDIT);
+
+    tx.addInput(txIn);
+    return tx.getSerialized().getHex();
+}
+
 std::string createtransaction(bool bHelp, params_t& params)
 {
     if (bHelp || params.size() != 5) {
@@ -327,6 +346,7 @@ void initCommands()
     command_map["parsemultisigredeemscript"] = &parsemultisigredeemscript;
     command_map["addoutput"] = &addoutput;
     command_map["addp2addressinput"] = &addp2addressinput;
+    command_map["addmofninput"] = &addmofninput;
     command_map["createtransaction"] = &createtransaction;
     command_map["signmofn"] = &signmofn;
     command_map["getmissingsigs"] = &getmissingsigs;
