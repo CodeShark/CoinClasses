@@ -138,6 +138,7 @@ void StandardTxOut::set(const std::string& address, uint64_t value, const unsign
 
 enum ScriptSigType { SCRIPT_SIG_BROADCAST, SCRIPT_SIG_EDIT, SCRIPT_SIG_SIGN };
 enum SigHashType {
+    SIGHASH_ALREADYADDED    = 0x00,
     SIGHASH_ALL             = 0x01,
     SIGHASH_NONE            = 0x02,
     SIGHASH_SINGLE          = 0x03,
@@ -213,7 +214,9 @@ void P2AddressTxIn::addSig(const uchar_vector& _pubKey, const uchar_vector& _sig
     }
 
     sig = _sig;
-    sig.push_back(sigHashType);
+    if (sigHashType != SIGHASH_ALREADYADDED) {
+        sig.push_back(sigHashType);
+    }
 }
 
 void P2AddressTxIn::setScriptSig(ScriptSigType scriptSigType)
@@ -421,7 +424,8 @@ private:
     std::vector<uchar_vector> pubKeys;
 
 public:
-    MofNTxIn() : StandardTxIn() { minSigs = 0; }
+    MofNTxIn() : StandardTxIn(), minSigs(0) { }
+    MofNTxIn(const TxIn& txIn) : StandardTxIn(txIn), minSigs(0) { }
     MofNTxIn(const uchar_vector& outhash, uint32_t outindex, const MultiSigRedeemScript& redeemScript = MultiSigRedeemScript(), uint32_t sequence = 0xffffffff) :
         StandardTxIn(outhash, outindex, sequence) { setRedeemScript(redeemScript); }
 
@@ -478,9 +482,10 @@ void MofNTxIn::addSig(const uchar_vector& pubKey, const uchar_vector& sig, SigHa
         throw std::runtime_error(ss.str());
     }
 
-    uchar_vector _sig = sig;
-    _sig.push_back(sigHashType);
-    mapPubKeyToSig[pubKey] = _sig;
+    mapPubKeyToSig[pubKey] = sig;
+    if (sigHashType != SIGHASH_ALREADYADDED) {
+        mapPubKeyToSig[pubKey].push_back(sigHashType);
+    }
 }
 
 void MofNTxIn::getPubKeysMissingSig(std::vector<uchar_vector>& pubKeys, uint& minSigsStillNeeded) const
@@ -550,7 +555,9 @@ public:
     void addSig(const uchar_vector& pubKey, const uchar_vector& sig, SigHashType sigHashType = SIGHASH_ALL)
     {
         uchar_vector _sig = sig;
-        _sig.push_back(sigHashType);
+        if (sigHashType != SIGHASH_ALREADYADDED) {
+            _sig.push_back(sigHashType);
+        }
         sigs.push_back(_sig);
     }
     void getPubKeysMissingSig(std::vector<uchar_vector>& pubKeys, uint& minSigsStillNeeded) const { }
@@ -626,19 +633,28 @@ void TransactionBuilder::setTx(const Transaction& tx)
             P2AddressTxIn* pTxIn = new P2AddressTxIn(tx.inputs[i]);
             pTxIn->addPubKey(objects[1]);
             if (objects[0].size() > 0) {
-                pTxIn->addSig(objects[1], objects[0]);
+                pTxIn->addSig(objects[1], objects[0], SIGHASH_ALREADYADDED);
             }            
             inputs.push_back(pTxIn); 
         }
         else if (objects.size() >= 3 && objects[0].size() == 0) {
             // MofN
             MultiSigRedeemScript multiSig(objects.back());
-            if (multiSig.getMinSigs() < objects.size() - 2) {
+            if (multiSig.getPubKeyCount() < objects.size() - 2) {
+                // Only supports SIG_SCRIPT_EDIT input
                 std::stringstream ss;
                 ss << "Insufficient signatures in input " << i << ".";
                 throw std::runtime_error(ss.str());
             }
-            
+            MofNTxIn* pTxIn = new MofNTxIn(tx.inputs[i]);
+            pTxIn->setRedeemScript(multiSig);
+            std::vector<uchar_vector> pubKeys = multiSig.getPubKeys();
+            for (uint k = 1; k < objects.size() - 1; k++) {
+                if (objects[k].size() > 0) {
+                    pTxIn->addSig(pubKeys[k-1], objects[k], SIGHASH_ALREADYADDED);      
+                }
+            }
+            inputs.push_back(pTxIn); 
         }
         else {
             std::stringstream ss;
