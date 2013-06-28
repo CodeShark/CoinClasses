@@ -70,10 +70,10 @@ std::string createmultisig(bool bHelp, params_t& params)
     return multiSig.toJson();
 }
 
-std::string parsemultisigredeemscript(bool bHelp, params_t& params)
+std::string parsemultisig(bool bHelp, params_t& params)
 {
     if (bHelp || params.size() != 1) {
-        return "parsemultisigredeemscript <redeemScript> - parses a multisignature redeem script.";
+        return "parsemultisig <redeemScript> - parses a multisignature redeem script.";
     }
 
     MultiSigRedeemScript multiSig;
@@ -359,7 +359,7 @@ void initCommands()
     command_map["help"] = &help;
     command_map["createmultisig"] = &createmultisig;
 //    command_map["standardtxout"] = &standardtxout;
-    command_map["parsemultisigredeemscript"] = &parsemultisigredeemscript;
+    command_map["parsemultisig"] = &parsemultisig;
     command_map["addoutput"] = &addoutput;
     command_map["addp2addressinput"] = &addp2addressinput;
     command_map["addmofninput"] = &addmofninput;
