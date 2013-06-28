@@ -348,6 +348,17 @@ std::string getmissingsigs(bool bHelp, params_t& params)
     return txBuilder.getMissingSigsJson();
 }
 
+// TODO: make sure no signatures are missing
+std::string getbroadcast(bool bHelp, params_t& params)
+{
+    if (bHelp || params.size() != 1) {
+        return "getbroadcast <txhex> - gets the transaction in broadcast format.";
+    }
+
+    TransactionBuilder txBuilder(params[0]);
+    return txBuilder.getTx(SCRIPT_SIG_BROADCAST).getSerialized().getHex();
+}
+
 
 ///////////////////////////////////
 //
@@ -367,6 +378,7 @@ void initCommands()
 //    command_map["createtransaction"] = &createtransaction;
 //    command_map["signmofn"] = &signmofn;
     command_map["getmissingsigs"] = &getmissingsigs;
+    command_map["getbroadcast"] = &getbroadcast;
 }
 
 void getParams(int argc, char* argv[], params_t& params)
