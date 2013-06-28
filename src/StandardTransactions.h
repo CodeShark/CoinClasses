@@ -492,7 +492,7 @@ void MofNTxIn::getPubKeysMissingSig(std::vector<uchar_vector>& pubKeys, uint& mi
 {
     pubKeys.clear();
 
-    uint nSigs;
+    uint nSigs = 0;
     for (uint i = 0; i < this->pubKeys.size(); i++) {
         // at() might throw an out_of_range exception if pubKey is not found,
         // but this condition should never occur.
@@ -504,7 +504,7 @@ void MofNTxIn::getPubKeysMissingSig(std::vector<uchar_vector>& pubKeys, uint& mi
         }
     }
 
-    minSigsStillNeeded = (nSigs > minSigs) ? 0 : (minSigs - nSigs);
+    minSigsStillNeeded = (nSigs >= minSigs) ? 0 : (minSigs - nSigs);
 }
 
 void MofNTxIn::setScriptSig(ScriptSigType scriptSigType)
@@ -605,6 +605,8 @@ public:
     void clearOutputs();
 
     void setTx(const Transaction& tx);
+
+    std::string getMissingSigsJson() const;
 };
 
 void TransactionBuilder::setTx(const Transaction& tx)
@@ -663,6 +665,30 @@ void TransactionBuilder::setTx(const Transaction& tx)
         }
     } 
 }
+
+std::string TransactionBuilder::getMissingSigsJson() const
+{
+    std::stringstream ss;
+    ss << "[\n";
+    for (uint i = 0; i < inputs.size(); i++) {
+        std::vector<uchar_vector> pubKeys;
+        uint minSigsStillNeeded;
+        inputs[i]->getPubKeysMissingSig(pubKeys, minSigsStillNeeded);
+        if (i > 0) ss << ",\n";
+        ss << "    {"
+           <<  "\n        \"index\" : " << i
+           << ",\n        \"minSigsStillNeeded\" : " << minSigsStillNeeded
+           << ",\n        \"pubKeys\" : [";
+        for (uint j = 0; j < pubKeys.size(); j++) {
+            if (j > 0) ss << ", ";
+            ss << "\"" << pubKeys[j].getHex() << "\"";
+        }
+        ss << "]\n    }";
+    }
+    ss << "\n]";
+    return ss.str();
+}
+
 
 void TransactionBuilder::clearInputs()
 {

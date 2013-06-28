@@ -148,6 +148,42 @@ std::string addp2addressinput(bool bHelp, params_t& params)
     return tx.getSerialized().getHex();
 }
 
+std::string createtransaction(bool bHelp, params_t& params)
+{
+    if (bHelp || params.size() != 5) {
+        return "createtransaction <outhash> <outindex> <redeemscript> <toaddress> <value> - creates a transaction claiming a multisignature input.";
+    }
+
+    uchar_vector outHash = params[0];
+    uint outIndex = strtoul(params[1].c_str(), NULL, 10);
+    uchar_vector redeemScript = params[2];
+    std::string toAddress = params[3];
+    uint64_t value = strtoull(params[4].c_str(), NULL, 10);
+
+    StandardTxOut txOut;
+    txOut.set(toAddress, value);
+
+    MultiSigRedeemScript multiSig;
+    multiSig.parseRedeemScript(redeemScript);
+
+    P2SHTxIn txIn(outHash, outIndex, multiSig.getRedeemScript());
+    txIn.setScriptSig(SCRIPT_SIG_SIGN);
+
+    Transaction tx;
+    tx.addOutput(txOut);
+    tx.addInput(txIn);
+    uchar_vector hashToSign = tx.getHashWithAppendedCode(1); // SIGHASH_ALL
+
+    for (uint i = 0; i < multiSig.getPubKeyCount(); i++) {
+        txIn.addSig(uchar_vector(), uchar_vector(), SIGHASH_ALREADYADDED);
+    }
+
+    txIn.setScriptSig(SCRIPT_SIG_EDIT);
+    tx.clearInputs();
+    tx.addInput(txIn);
+    return tx.getSerialized().getHex();
+}
+
 std::string signtransaction(bool bHelp, params_t& params)
 {
     if (bHelp || params.size() < 6) {
@@ -181,8 +217,8 @@ std::string signtransaction(bool bHelp, params_t& params)
 
     // TODO: make sure to wipe all key data if there's any failure
     CoinKey key;
-    for (uint i = 5; i < params.size(); i++) {
-        if (!key.setWalletImport(params[i])) {
+    for (uint i = 0; i < privKeys.size(); i++) {
+        if (!key.setWalletImport(privKeys[i])) {
             std::stringstream ss;
             ss << "Private key " << i+1 << " is invalid.";
             throw std::runtime_error(ss.str());
@@ -197,7 +233,12 @@ std::string signtransaction(bool bHelp, params_t& params)
         txIn.addSig(uchar_vector(), sig);
     }
 
-    txIn.setScriptSig(SCRIPT_SIG_BROADCAST);
+    if (privKeys.size() < multiSig.getMinSigs()) {
+        txIn.setScriptSig(SCRIPT_SIG_EDIT);
+    }
+    else {
+        txIn.setScriptSig(SCRIPT_SIG_BROADCAST);
+    }
     tx.clearInputs();
     tx.addInput(txIn);
     return tx.getSerialized().getHex();
@@ -262,6 +303,17 @@ std::string signmofn(bool bHelp, params_t& params)
     return tx.getSerialized().getHex();
 }
 
+std::string getmissingsigs(bool bHelp, params_t& params)
+{
+    if (bHelp || params.size() != 1) {
+        return "getmissingsigs <txhex>"; 
+    }
+
+    TransactionBuilder txBuilder(params[0]);
+    return txBuilder.getMissingSigsJson();
+}
+
+
 ///////////////////////////////////
 //
 // Initialization Functions
@@ -275,8 +327,9 @@ void initCommands()
     command_map["parsemultisigredeemscript"] = &parsemultisigredeemscript;
     command_map["addoutput"] = &addoutput;
     command_map["addp2addressinput"] = &addp2addressinput;
-    command_map["signtransaction"] = &signtransaction;
+    command_map["createtransaction"] = &createtransaction;
     command_map["signmofn"] = &signmofn;
+    command_map["getmissingsigs"] = &getmissingsigs;
 }
 
 void getParams(int argc, char* argv[], params_t& params)
