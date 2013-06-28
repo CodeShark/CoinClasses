@@ -341,16 +341,16 @@ private:
 
 public:
     MofNTxIn() : StandardTxIn() { minSigs = 0; }
-    MofNTxIn(const uchar_vector& outhash, uint32_t outindex, const MultiSigRedeemScript& redeemScript = MultiSigRedeemScript(), uint32_t _sequence = 0xffffffff) :
+    MofNTxIn(const uchar_vector& outhash, uint32_t outindex, const MultiSigRedeemScript& redeemScript = MultiSigRedeemScript(), uint32_t sequence = 0xffffffff) :
         StandardTxIn(outhash, outindex, sequence) { setRedeemScript(redeemScript); }
 
     void setRedeemScript(const MultiSigRedeemScript& redeemScript);
 
     void clearPubKeys() { mapPubKeyToSig.clear(); pubKeys.clear(); }
-    void addPubKey();
+    void addPubKey(const uchar_vector& pubKey);
 
-    void clearSigs() { }
-    void addSig(const uchar_vector& _pubKey, const uchar_vector& _sig, SigHashType sigHashType) { }
+    void clearSigs();
+    void addSig(const uchar_vector& pubKey, const uchar_vector& sig, SigHashType sigHashType = SIGHASH_ALL);
 
     void setScriptSig(ScriptSigType scriptSigType) { } 
 };
@@ -366,8 +366,36 @@ void MofNTxIn::setRedeemScript(const MultiSigRedeemScript& redeemScript)
     }
 }
 
-void MofNTxIn::addPubKey()
+void MofNTxIn::addPubKey(const uchar_vector& pubKey)
 {
+    std::map<uchar_vector, uchar_vector>::iterator it;
+    it = mapPubKeyToSig.find(pubKey);
+    if (it != mapPubKeyToSig.end()) {
+        throw std::runtime_error("PubKey already added.");
+    }
+
+    mapPubKeyToSig[pubKey] = uchar_vector();
+}
+
+void MofNTxIn::clearSigs()
+{
+    std::map<uchar_vector, uchar_vector>::iterator it = mapPubKeyToSig.begin();
+    for(; it != mapPubKeyToSig.end(); ++it) {
+        it->second = uchar_vector();
+    }
+}
+
+void MofNTxIn::addSig(const uchar_vector& pubKey, const uchar_vector& sig, SigHashType sigHashType)
+{
+    std::map<uchar_vector, uchar_vector>::iterator it;
+    it = mapPubKeyToSig.find(pubKey);
+    if (it == mapPubKeyToSig.end()) {
+        throw std::runtime_error("PubKey not yet added.");
+    }
+
+    uchar_vector _sig = sig;
+    _sig.push_back(sigHashType);
+    mapPubKeyToSig[pubKey] = _sig;
 }
 
 class P2SHTxIn : public StandardTxIn
