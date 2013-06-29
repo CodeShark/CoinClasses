@@ -45,12 +45,13 @@ std::string help(bool bHelp, params_t& params)
         return "help - displays help information.";
     }
 
-    std::string result = "\n";
+    std::stringstream ss;
+    ss << "List of commands:";
     command_map_t::iterator it = command_map.begin();
     for (; it != command_map.end(); ++it) {
-        result += it->second(true, params) + "\n";
+        ss << std::endl << it->second(true, params);
     }
-    return result;
+    return ss.str();
 }
 
 ///////////////////////////////////
