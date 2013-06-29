@@ -665,7 +665,10 @@ public:
     Transaction getTx(ScriptSigType scriptSigType) const;
 
     void addInput(const uchar_vector& outHash, uint outIndex, const uchar_vector& pubKey, uint32_t sequence = 0xffffffff);
-    void removeInput(uint index);
+    void removeInput(uint32_t index);
+
+    void addOutput(const std::string& address, uint64_t value, const unsigned char addressVersions[] = BITCOIN_ADDRESS_VERSIONS);
+    void removeOutput(uint32_t index);
 
     std::string getMissingSigsJson() const;
     void sign(uint index, const uchar_vector& pubKey, const std::string& privKey, SigHashType sigHashType = SIGHASH_ALL);
@@ -778,7 +781,7 @@ Transaction TransactionBuilder::getTx(ScriptSigType scriptSigType) const
     return tx;
 }
 
-void TransactionBuilder::addInput(const uchar_vector& outHash, uint outIndex, const uchar_vector& pubKey, uint32_t sequence)
+void TransactionBuilder::addInput(const uchar_vector& outHash, uint32_t outIndex, const uchar_vector& pubKey, uint32_t sequence)
 {
     std::map<uchar_vector, Transaction>::const_iterator it = mapDependencies.find(outHash);
     if (it == mapDependencies.end()) {
@@ -814,7 +817,7 @@ void TransactionBuilder::addInput(const uchar_vector& outHash, uint outIndex, co
     }
 }
 
-void TransactionBuilder::removeInput(uint index)
+void TransactionBuilder::removeInput(uint32_t index)
 {
     if (index > inputs.size() - 1) {
         std::stringstream ss;
@@ -824,6 +827,31 @@ void TransactionBuilder::removeInput(uint index)
 
     delete inputs[index];
     inputs.erase(inputs.begin() + index);
+}
+
+void TransactionBuilder::addOutput(const std::string& address, uint64_t value, const unsigned char addressVersions[])
+{
+    StandardTxOut* pTxOut = new StandardTxOut;
+    try {
+        pTxOut->set(address, value, addressVersions);
+    }
+    catch (const std::exception& e) {
+        delete pTxOut;
+        throw e;
+    }
+    outputs.push_back(pTxOut);
+}
+
+void TransactionBuilder::removeOutput(uint32_t index)
+{
+    if (index > outputs.size() - 1) {
+        std::stringstream ss;
+        ss << "Invalid index " << index << ".";
+        throw std::runtime_error(ss.str());
+    }
+
+    delete outputs[index];
+    outputs.erase(outputs.begin() + index);
 }
 
 std::string TransactionBuilder::getMissingSigsJson() const

@@ -36,6 +36,7 @@ std::string help(bool bHelp, params_t& params);
 std::string createmultisig(bool bHelp, params_t& params);
 std::string parsemultisig(bool bHelp, params_t& params);
 std::string addoutput(bool bHelp, params_t& params);
+std::string removeoutput(bool bHelp, params_t& params);
 std::string addaddressinput(bool bHelp, params_t& params);
 std::string addmofninput(bool bHelp, params_t& params);
 std::string adddeps(bool bHelp, params_t& params);

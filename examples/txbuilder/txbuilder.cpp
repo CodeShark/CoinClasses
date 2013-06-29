@@ -65,6 +65,7 @@ void initCommands()
     command_map["createmultisig"] = &createmultisig;
     command_map["parsemultisig"] = &parsemultisig;
     command_map["addoutput"] = &addoutput;
+    command_map["removeoutput"] = &removeoutput;
     command_map["addaddressinput"] = &addaddressinput;
     command_map["addmofninput"] = &addmofninput;
     command_map["adddeps"] = &adddeps;

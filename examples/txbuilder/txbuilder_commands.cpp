@@ -61,19 +61,25 @@ std::string parsemultisig(bool bHelp, params_t& params)
 std::string addoutput(bool bHelp, params_t& params)
 {
     if (bHelp || params.size() != 3) {
-        return "addoutput <txhex> <address> <value> - add a standard output to a transaction. Pass \"null\" for txhex to create a new transaction.";
+        return "addoutput <txblob> <address> <value> - add a standard output to a transaction. Pass \"null\" for txhex to create a new transaction.";
     }
 
-    Transaction tx;
-    if (params[0] != "") {
-        tx.setSerialized(uchar_vector(params[0]));
+    TransactionBuilder txBuilder;
+    txBuilder.setSerialized(params[0]);
+    txBuilder.addOutput(params[1], strtoull(params[2].c_str(), NULL, 10));
+    return txBuilder.getSerialized().getHex();
+}
+
+std::string removeoutput(bool bHelp, params_t& params)
+{
+    if (bHelp || params.size() != 2) {
+        return "removeoutput <txbuilder blob> <index>";
     }
 
-    StandardTxOut txOut;
-    txOut.set(params[1], strtoull(params[2].c_str(), NULL, 10));
-
-    tx.addOutput(txOut);
-    return tx.getSerialized().getHex();
+    TransactionBuilder txBuilder;
+    txBuilder.setSerialized(params[0]);
+    txBuilder.removeOutput(strtoul(params[1].c_str(), NULL, 10));
+    return txBuilder.getSerialized().getHex();
 }
 
 // TODO : Make function detect input type automatically.
