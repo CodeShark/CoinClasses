@@ -106,7 +106,16 @@ void doError(const std::string& error)
 {
     std::cout << "Error: " << error << std::endl;
 }
-    
+
+void showCommand(const std::string command, params_t& params)
+{
+    std::cout << "Command: " << command;
+    for (uint i = 0; i < params.size(); i++) {
+        std::cout << " " << params[i];
+    }
+    std::cout << std::endl;
+}
+ 
 // precondition:    input is not empty
 // postcondition:   command contains the first token, params contains the rest
 void parseInput(const std::string& input, std::string& command, params_t& params)
@@ -221,6 +230,7 @@ void loop()
         parseInput(input, command, params);
         try {
             substituteTokens(params);
+            showCommand(command, params);
             output = execCommand(command, params);
             doOutput(output);
         }

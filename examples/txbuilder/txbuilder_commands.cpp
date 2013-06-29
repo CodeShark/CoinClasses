@@ -61,7 +61,7 @@ std::string parsemultisig(bool bHelp, params_t& params)
 std::string addoutput(bool bHelp, params_t& params)
 {
     if (bHelp || params.size() != 3) {
-        return "addoutput <txhex> <address> <value> - add a standard output to a transaction. Pass empty string as txhex to create a new transaction.";
+        return "addoutput <txhex> <address> <value> - add a standard output to a transaction. Pass \"null\" for txhex to create a new transaction.";
     }
 
     Transaction tx;
@@ -80,7 +80,7 @@ std::string addoutput(bool bHelp, params_t& params)
 std::string addaddressinput(bool bHelp, params_t& params)
 {
     if (bHelp || params.size() < 4 || params.size() > 5) {
-        return "addaddressinput <txhex> <outhash> <outindex> <pubkey> [sequence = 0xffffffff] - adds a standard pay-to-address input to a transaction with an optional signature. Pass empty string as txhex to create a new transaction.";
+        return "addaddressinput <txhex> <outhash> <outindex> <pubkey> [sequence = 0xffffffff] - adds a standard pay-to-address input to a transaction with an optional signature. Pass \"null\" for txhex to create a new transaction.";
     }
 
     Transaction tx;
