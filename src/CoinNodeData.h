@@ -521,6 +521,8 @@ public:
     uchar_vector getSerialized(bool includeScriptSigLength) const;
     void setSerialized(const uchar_vector& bytes);
 
+    uchar_vector getOutpointHash() const { return uchar_vector(this->previousOut.hash, 32); }
+    uint32_t getOutpointIndex() const { return this->previousOut.index; }
     std::string getAddress() const;
     std::string toString() const;
     std::string toIndentedString(uint spaces = 0) const;

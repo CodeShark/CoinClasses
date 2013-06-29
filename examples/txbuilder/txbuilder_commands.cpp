@@ -115,6 +115,68 @@ std::string addmofninput(bool bHelp, params_t& params)
     return tx.getSerialized().getHex();
 }
 
+std::string adddeps(bool bHelp, params_t& params)
+{
+    if (bHelp || params.size() < 2) {
+        return "adddeps <txbuilder blob> <dep1> [<dep2> <dep3> ...] - adds dependency transactions to builder object.";
+    }
+
+    std::string concat = "";
+    for (uint i = 0; i < params.size(); i++) {
+        concat += params[i];
+    }
+
+    TransactionBuilder txBuilder;
+    txBuilder.setSerialized(concat);
+    return txBuilder.getSerialized().getHex();
+}
+
+std::string listdeps(bool bHelp, params_t& params)
+{
+    if (bHelp || params.size() != 1) {
+        return "listdeps <txbuilder blob> - lists the hashes of included dependency transactions.";
+    }
+
+    TransactionBuilder txBuilder;
+    txBuilder.setSerialized(params[0]);
+    std::vector<uchar_vector> hashes = txBuilder.getDependencyHashes();
+
+    std::stringstream ss;
+    ss << "[";
+    for (uint i = 0; i < hashes.size(); i++) {
+        if (i > 0) ss << ", ";
+        ss << "\"" << hashes[i].getHex() << "\"";
+    }
+    ss << "]";
+    return ss.str();
+}
+
+std::string addinput(bool bHelp, params_t& params)
+{
+    if (bHelp || params.size() < 4 || params.size() > 5) {
+        return "addinput <txbuilder blob> <outhash> <outindex> <pubkey> [sequence = 0xffffffff] - adds an input to a transaction from a dependency transaction.";
+    }
+
+    TransactionBuilder txBuilder;
+    txBuilder.setSerialized(params[0]);
+
+    uint32_t sequence = (params.size() == 5) ? strtoul(params[4].c_str(), NULL, 0) : 0xffffffff;
+    txBuilder.addInput(params[1], strtoul(params[2].c_str(), NULL, 10), params[3], sequence);
+    return txBuilder.getSerialized().getHex();
+}
+
+std::string removeinput(bool bHelp, params_t& params)
+{
+    if (bHelp || params.size() != 2) {
+        return "removeinput <txbuilder blob> <index>";
+    }
+
+    TransactionBuilder txBuilder;
+    txBuilder.setSerialized(params[0]);
+    txBuilder.removeInput(strtoul(params[1].c_str(), NULL, 10));
+    return txBuilder.getSerialized().getHex();
+}
+
 std::string sign(bool bHelp, params_t& params)
 {
     if (bHelp || params.size() < 4 || params.size() > 5) {
@@ -130,16 +192,17 @@ std::string sign(bool bHelp, params_t& params)
     TransactionBuilder txBuilder(tx);
     txBuilder.sign(strtoul(params[1].c_str(), NULL, 10), params[2], params[3], sigHashType);
 
-    return txBuilder.getTx(SCRIPT_SIG_EDIT).getSerialized().getHex();
+    return txBuilder.getSerialized().getHex();
 }
 
 std::string getmissingsigs(bool bHelp, params_t& params)
 {
     if (bHelp || params.size() != 1) {
-        return "getmissingsigs <txhex>";
+        return "getmissingsigs <txblob>";
     }
 
-    TransactionBuilder txBuilder(params[0]);
+    TransactionBuilder txBuilder;
+    txBuilder.setSerialized(params[0]);
     return txBuilder.getMissingSigsJson();
 }
 

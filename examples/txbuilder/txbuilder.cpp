@@ -67,6 +67,10 @@ void initCommands()
     command_map["addoutput"] = &addoutput;
     command_map["addaddressinput"] = &addaddressinput;
     command_map["addmofninput"] = &addmofninput;
+    command_map["adddeps"] = &adddeps;
+    command_map["listdeps"] = &listdeps;
+    command_map["addinput"] = &addinput;
+    command_map["removeinput"] = &removeinput;
     command_map["sign"] = &sign;
     command_map["getmissingsigs"] = &getmissingsigs;
     command_map["getbroadcast"] = &getbroadcast;

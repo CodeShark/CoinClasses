@@ -107,30 +107,68 @@ uint32_t bytesPushData(const uchar_vector& script, uint& pos)
     }
 }
 
+enum TxOutType { TXOUT_UNKNOWN, TXOUT_P2A, TXOUT_P2SH };
+
 class StandardTxOut : public TxOut
 {
+private:
+    TxOutType txOutType;
+    uchar_vector pubKeyHash;
+
 public:
-    StandardTxOut() { }
-    StandardTxOut(const TxOut& txOut) : TxOut(txOut) { }
+    StandardTxOut() : txOutType(TXOUT_UNKNOWN) { }
+    StandardTxOut(const TxOut& txOut);
 
     void set(const std::string& address, uint64_t value, const unsigned char addressVersions[] = BITCOIN_ADDRESS_VERSIONS);
+
+    TxOutType getType() const { return txOutType; }
+    const uchar_vector& getPubKeyHash() { return pubKeyHash; }
 };
 
+StandardTxOut::StandardTxOut(const TxOut& txOut) : TxOut(txOut)
+{
+    if (scriptPubKey.size() == 25 &&
+            scriptPubKey[0] == 0x76 &&
+            scriptPubKey[1] == 0xa9 &&
+            scriptPubKey[2] == 0x14 &&
+            scriptPubKey[23] == 0x88 &&
+            scriptPubKey[24] == 0xac) {
+        txOutType = TXOUT_P2A;
+        pubKeyHash.assign(scriptPubKey.begin() + 3, scriptPubKey.begin() + 23);
+        return;
+    }
+
+    if (scriptPubKey.size() == 23 &&
+            scriptPubKey[0] == 0xa9 &&
+            scriptPubKey[1] == 0x14 &&
+            scriptPubKey[22] == 0x87) {
+        txOutType = TXOUT_P2SH;
+        pubKeyHash.assign(scriptPubKey.begin() + 2, scriptPubKey.begin() + 22);
+        return;
+    }
+
+    txOutType = TXOUT_UNKNOWN;
+}
 
 void StandardTxOut::set(const std::string& address, uint64_t value, const unsigned char addressVersions[])
 {
     uchar_vector pubKeyHash;
     uint version;
-    if (!fromBase58Check(address, pubKeyHash, version))
-        throw std::runtime_error("Invalid address checksum.");
+    if (!fromBase58Check(address, pubKeyHash, version)) {
+        std::stringstream ss;
+        ss << "Invalid address checksum for address " << address << ".";
+        throw std::runtime_error(ss.str());
+    }
 
     if (version == addressVersions[0]) {
         // pay-to-address
-        this->scriptPubKey = uchar_vector("76a914") + pubKeyHash + uchar_vector("88ac");
+        txOutType = TXOUT_P2A;
+        scriptPubKey = uchar_vector("76a914") + pubKeyHash + uchar_vector("88ac");
     }
     else if (version == addressVersions[1]) {
         // pay-to-script-hash
-        this->scriptPubKey = uchar_vector("a914") + pubKeyHash + uchar_vector("87");
+        txOutType = TXOUT_P2SH;
+        scriptPubKey = uchar_vector("a914") + pubKeyHash + uchar_vector("87");
     }
     else {
         throw std::runtime_error("Invalid address version.");
@@ -141,7 +179,10 @@ void StandardTxOut::set(const std::string& address, uint64_t value, const unsign
     }
 
     this->value = value;
+    this->pubKeyHash = pubKeyHash;
 }
+
+
 
 enum ScriptSigType { SCRIPT_SIG_BROADCAST, SCRIPT_SIG_EDIT, SCRIPT_SIG_SIGN };
 enum SigHashType {
@@ -606,6 +647,8 @@ private:
     std::vector<StandardTxOut*> outputs;
     uint32_t lockTime;
 
+    std::map<uchar_vector, Transaction> mapDependencies;
+
 public:
     TransactionBuilder() { }
     TransactionBuilder(const Transaction& tx) { this->setTx(tx); }
@@ -615,12 +658,44 @@ public:
     void clearInputs();
     void clearOutputs();
 
+    void setSerialized(const uchar_vector& hex);
+    uchar_vector getSerialized() const;
+    
     void setTx(const Transaction& tx);
     Transaction getTx(ScriptSigType scriptSigType) const;
 
+    void addInput(const uchar_vector& outHash, uint outIndex, const uchar_vector& pubKey, uint32_t sequence = 0xffffffff);
+    void removeInput(uint index);
+
     std::string getMissingSigsJson() const;
     void sign(uint index, const uchar_vector& pubKey, const std::string& privKey, SigHashType sigHashType = SIGHASH_ALL);
+
+    std::vector<uchar_vector> getDependencyHashes() const;
 };
+
+void TransactionBuilder::setSerialized(const uchar_vector& bytes)
+{
+    Transaction tx(bytes);
+    setTx(tx);
+
+    uchar_vector remaining(bytes.begin() + tx.getSize(), bytes.end());
+    while (remaining.size() > 0) {
+        tx.setSerialized(remaining);
+        mapDependencies[tx.getHashLittleEndian()] = tx;
+        remaining.assign(remaining.begin() + tx.getSize(), remaining.end());
+    }
+}
+
+uchar_vector TransactionBuilder::getSerialized() const
+{
+    uchar_vector rval = getTx(SCRIPT_SIG_EDIT).getSerialized().getHex();
+
+    std::map<uchar_vector, Transaction>::const_iterator it = mapDependencies.begin();
+    for (; it != mapDependencies.end(); ++it) {
+        rval += it->second.getSerialized();
+    }
+    return rval;
+}
 
 void TransactionBuilder::setTx(const Transaction& tx)
 {
@@ -703,6 +778,54 @@ Transaction TransactionBuilder::getTx(ScriptSigType scriptSigType) const
     return tx;
 }
 
+void TransactionBuilder::addInput(const uchar_vector& outHash, uint outIndex, const uchar_vector& pubKey, uint32_t sequence)
+{
+    std::map<uchar_vector, Transaction>::const_iterator it = mapDependencies.find(outHash);
+    if (it == mapDependencies.end()) {
+        std::stringstream ss;
+        ss << "Transaction with hash " << outHash.getHex() << " is not a dependency.";
+        throw std::runtime_error(ss.str());
+    }
+
+    const Transaction& tx = it->second;
+    if (outIndex > tx.outputs.size() - 1) {
+        throw std::runtime_error("Invalid output index.");
+    }
+
+    StandardTxOut txOut(tx.outputs[outIndex]);
+    if (txOut.getType() == TXOUT_UNKNOWN) {
+        throw std::runtime_error("Unknown output type.");
+    }
+
+    if (txOut.getPubKeyHash() != ripemd160(sha256(pubKey))) {
+        std::stringstream ss;
+        ss << "Public key " << pubKey.getHex() << " does not hash to correct value.";
+        throw std::runtime_error(ss.str());
+    }
+
+    if (txOut.getType() == TXOUT_P2A) {
+        P2AddressTxIn* pTxIn = new P2AddressTxIn(outHash, outIndex, pubKey, sequence);
+        inputs.push_back(pTxIn);
+    }
+    else if (txOut.getType() == TXOUT_P2SH) {
+        // We can only sign M of N right now
+        MofNTxIn* pTxIn = new MofNTxIn(outHash, outIndex, pubKey, sequence);
+        inputs.push_back(pTxIn);    
+    }
+}
+
+void TransactionBuilder::removeInput(uint index)
+{
+    if (index > inputs.size() - 1) {
+        std::stringstream ss;
+        ss << "Invalid index " << index << ".";
+        throw std::runtime_error(ss.str());
+    }
+
+    delete inputs[index];
+    inputs.erase(inputs.begin() + index);
+}
+
 std::string TransactionBuilder::getMissingSigsJson() const
 {
     std::stringstream ss;
@@ -710,6 +833,10 @@ std::string TransactionBuilder::getMissingSigsJson() const
     for (uint i = 0; i < inputs.size(); i++) {
         std::vector<uchar_vector> pubKeys;
         uint minSigsStillNeeded;
+        const uchar_vector& outpointHash = inputs[i]->getOutpointHash();
+        uint32_t outpointIndex = inputs[i]->getOutpointIndex();
+        std::cout << "outpointHash: " << outpointHash.getHex() << std::endl;
+        std::cout << "outpointIndex: " << outpointIndex << std::endl;
         inputs[i]->getPubKeysMissingSig(pubKeys, minSigsStillNeeded);
         if (i > 0) ss << ",\n";
         ss << "    {"
@@ -720,7 +847,12 @@ std::string TransactionBuilder::getMissingSigsJson() const
             if (j > 0) ss << ", ";
             ss << "\"" << pubKeys[j].getHex() << "\"";
         }
-        ss << "]\n    }";
+        ss << "]";
+        std::map<uchar_vector, Transaction>::const_iterator it = mapDependencies.find(outpointHash);
+        if (it != mapDependencies.end() && outpointIndex < it->second.outputs.size()) {
+            ss << ",\n        \"value\" : \"" << it->second.outputs[outpointIndex].value << "\"";
+        }
+        ss << "\n    }";
     }
     ss << "\n]";
     return ss.str();
@@ -747,6 +879,17 @@ void TransactionBuilder::sign(uint index, const uchar_vector& pubKey, const std:
     }
 
     inputs[index]->addSig(pubKey, sig, sigHashType);
+}
+
+std::vector<uchar_vector> TransactionBuilder::getDependencyHashes() const
+{
+    std::vector<uchar_vector> hashes;
+
+    std::map<uchar_vector, Transaction>::const_iterator it = mapDependencies.begin();
+    for (; it != mapDependencies.end(); ++it) {
+        hashes.push_back(it->first);        
+    }
+    return hashes;
 }
 
 void TransactionBuilder::clearInputs()
