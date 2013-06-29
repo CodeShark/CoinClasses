@@ -25,9 +25,19 @@
 #include "txbuilder_commands.h"
 
 #include <iostream>
+#include <string>
+#include <vector>
+#include <map>
+#include <sstream>
+#include <algorithm>
+#include <iterator>
+#include <stdexcept>
 
 typedef std::map<std::string, fAction>  command_map_t;
 command_map_t command_map;
+
+std::vector<std::string> input_history;
+std::vector<std::string> output_history;
 
 std::string help(bool bHelp, params_t& params)
 {
@@ -72,18 +82,112 @@ void getParams(int argc, char* argv[], params_t& params)
 
 //////////////////////////////////
 //
-// Main Program
+// I/O Functions
 //
+bool getInput(std::string& input)
+{
+    std::cout << "> ";
+    input = "";
+    getline(std::cin, input);
+    if (input != "") {
+        input_history.push_back(input);
+        return true;
+    }
+    return false;
+}
+
+void doOutput(const std::string& output)
+{
+    output_history.push_back(output);
+    std::cout << "[" << output_history.size() << "] " << output << std::endl;
+}
+
+void doError(const std::string& error)
+{
+    std::cout << "Error: " << error << std::endl;
+}
+    
+// precondition:    input is not empty
+// postcondition:   command contains the first token, params contains the rest
+void parseInput(const std::string& input, std::string& command, params_t& params)
+{
+    using namespace std;
+    istringstream iss(input);
+    vector<string> tokens;
+    copy(istream_iterator<string>(iss),
+         istream_iterator<string>(),
+         back_inserter<vector<string> >(tokens));
+
+    command = tokens[0];
+    params.clear();
+    for (uint i = 1; i < tokens.size(); i++) {
+       params.push_back(tokens[i]);
+    } 
+}
+
+//////////////////////////////////
+//
+// Command interpreter
+//
+std::string execCommand(const std::string& command, params_t& params)
+{
+    command_map_t::iterator it = command_map.find(command);
+    if (it == command_map.end()) {
+        std::stringstream ss;
+        ss << "Invalid command " << command << ".";
+        throw std::runtime_error(ss.str());
+    }
+    return it->second(false, params);
+}
+
+//////////////////////////////////
+//
+// Main Loop
+//
+void loop()
+{
+    std::string input;
+    std::string output;
+    std::string command;
+    std::vector<std::string> params;
+
+    while (true) {
+        while (!getInput(input));
+        if (input == "exit") break;
+
+        parseInput(input, command, params);
+        try {
+            output = execCommand(command, params);
+            doOutput(output);
+        }
+        catch (const std::exception& e) {
+            doError(e.what());
+        }
+    }
+}
+
 int main(int argc, char* argv[])
 {
     initCommands();
-    params_t params;
 
     if (argc == 1) {
-        std::cout << help(false, params) << std::endl;
+        loop();
         return 0;
     }
 
+    params_t params;
+    getParams(argc, argv, params);
+
+    try {
+        std::cout << execCommand(argv[1], params) << std::endl;
+    }
+    catch (const std::exception& e) {
+        std::cout << "Error: " << e.what() << std::endl;
+        return -1;
+    }
+
+    return 0;
+/*
     std::string command = argv[1];
     command_map_t::iterator it = command_map.find(command);
     if (it == command_map.end()) {
@@ -99,7 +203,5 @@ int main(int argc, char* argv[])
     catch (const std::exception& e) {
         std::cout << "Error: " << e.what() << std::endl;
         return -1;
-    }
-
-    return 0;
+    }*/
 }
