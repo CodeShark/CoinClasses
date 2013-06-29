@@ -125,6 +125,69 @@ void parseInput(const std::string& input, std::string& command, params_t& params
     } 
 }
 
+// tilde negates the number
+int parseInt(const std::string& text)
+{
+    if (text.size() == 0) return 0;
+
+    bool bNeg = false;
+    uint start = 0;
+    std::string num = text;
+    if (num[0] == '~') {
+        bNeg = true;
+        start = 1;
+        num = num.substr(1);
+    }
+
+    // make sure we only have digits 0-9
+    for (uint i = start; i < num.size(); i++) {
+        if (num[i] < '0' || num[i] > '9') {
+            throw std::runtime_error("NaN");
+        }
+    }
+
+    int n = strtol(text.c_str(), NULL, 10);
+    if (bNeg) n *= -1;
+    return n;
+}
+
+void substituteTokens(params_t& params)
+{
+    int last_output = output_history.size();
+
+    for (uint i = 0; i < params.size(); i++) {
+        if (params[i] == "") continue;
+
+        if (params[i] == "null") {
+            params[i] = "";
+        }
+        else if (params[i][0] == '%') {
+            int n;
+            try {
+                n = parseInt(params[i].substr(1));
+            }
+            catch (...) {
+                std::stringstream ss;
+                ss << "Invalid token " << params[i] << ".";
+                throw std::runtime_error(ss.str());
+            }
+
+            if (n <= 0) {
+                n = last_output - n;
+            }
+            n--;
+
+            if (n < 0 || n > last_output) {
+                std::stringstream ss;
+                ss << "Index out of range for token " << params[i] << ".";
+                throw std::runtime_error(ss.str());
+            }
+
+            params[i] = output_history[n];
+        }
+    }
+}
+
 //////////////////////////////////
 //
 // Command interpreter
@@ -157,6 +220,7 @@ void loop()
 
         parseInput(input, command, params);
         try {
+            substituteTokens(params);
             output = execCommand(command, params);
             doOutput(output);
         }
