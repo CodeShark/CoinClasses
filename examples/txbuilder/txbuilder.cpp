@@ -261,21 +261,4 @@ int main(int argc, char* argv[])
     }
 
     return 0;
-/*
-    std::string command = argv[1];
-    command_map_t::iterator it = command_map.find(command);
-    if (it == command_map.end()) {
-        std::cout << "Invalid command: " << command << std::endl;
-        std::cout << help(true, params) << std::endl;
-        return 0;
-    }
-
-    getParams(argc, argv, params);
-    try {
-        std::cout << it->second(false, params) << std::endl;
-    }
-    catch (const std::exception& e) {
-        std::cout << "Error: " << e.what() << std::endl;
-        return -1;
-    }*/
 }
