@@ -517,8 +517,9 @@ void MofNTxIn::getPubKeysMissingSig(std::vector<uchar_vector>& pubKeys, uint& mi
 
 void MofNTxIn::setScriptSig(ScriptSigType scriptSigType)
 {
+    scriptSig.clear();
+
     if (scriptSigType == SCRIPT_SIG_BROADCAST || scriptSigType == SCRIPT_SIG_EDIT) {
-        scriptSig.clear();
         scriptSig.push_back(0x00); // OP_FALSE
 
         for (uint i = 0; i < pubKeys.size(); i++) {
@@ -534,8 +535,10 @@ void MofNTxIn::setScriptSig(ScriptSigType scriptSigType)
     for (uint i = 0; i < pubKeys.size(); i++) {
         redeemScript.addPubKey(pubKeys[i]);
     }
-    
-    scriptSig += opPushData(redeemScript.getRedeemScript().size());
+
+    if (scriptSigType == SCRIPT_SIG_BROADCAST || scriptSigType == SCRIPT_SIG_EDIT) {    
+        scriptSig += opPushData(redeemScript.getRedeemScript().size());
+    }
     scriptSig += redeemScript.getRedeemScript();    
 }
 
@@ -731,6 +734,7 @@ void TransactionBuilder::sign(uint index, const uchar_vector& pubKey, const std:
 
     Transaction tx = getTx(SCRIPT_SIG_SIGN);
     uchar_vector hashToSign = tx.getHashWithAppendedCode(sigHashType);
+    std::cout << "~~hashToSign: " << hashToSign.getHex() << std::endl;
 
     CoinKey key;
     if (!key.setWalletImport(privKey)) {

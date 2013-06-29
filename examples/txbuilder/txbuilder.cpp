@@ -359,6 +359,16 @@ std::string getbroadcast(bool bHelp, params_t& params)
     return txBuilder.getTx(SCRIPT_SIG_BROADCAST).getSerialized().getHex();
 }
 
+std::string getsign(bool bHelp, params_t& params)
+{
+    if (bHelp || params.size() != 1) {
+        return "getsign <txhex> - gets the transaction in signing format.";
+    }
+
+    TransactionBuilder txBuilder(params[0]);
+    return txBuilder.getTx(SCRIPT_SIG_SIGN).getSerialized().getHex();
+}
+
 
 ///////////////////////////////////
 //
@@ -379,6 +389,7 @@ void initCommands()
 //    command_map["signmofn"] = &signmofn;
     command_map["getmissingsigs"] = &getmissingsigs;
     command_map["getbroadcast"] = &getbroadcast;
+    command_map["getsign"] = &getsign;
 }
 
 void getParams(int argc, char* argv[], params_t& params)
