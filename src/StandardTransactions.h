@@ -638,6 +638,25 @@ void P2SHTxIn::setScriptSig(ScriptSigType scriptSigType)
 }
 
 
+class InputSigRequest
+{
+public:
+    uint32_t inputIndex;
+    uint  minSigsStillNeeded;
+    std::vector<uchar_vector> pubKeys;
+    uint64_t value; // set to 0xffffffffffffffffull if not known
+
+    InputSigRequest(const InputSigRequest& req) :
+        inputIndex(req.inputIndex), minSigsStillNeeded(req.minSigsStillNeeded), pubKeys(req.pubKeys), value(req.value) { }
+
+    InputSigRequest(uint32_t inputIndex, uint minSigsStillNeeded, const std::vector<uchar_vector>& pubKeys, uint64_t value = 0xffffffffffffffffull)
+    {
+        this->inputIndex = inputIndex;
+        this->minSigsStillNeeded = minSigsStillNeeded;
+        this->pubKeys = pubKeys;
+        this->value = value;
+    }
+};
 
 class TransactionBuilder
 {
@@ -649,9 +668,12 @@ private:
 
     std::map<uchar_vector, Transaction> mapDependencies;
 
+    mutable std::vector<InputSigRequest> missingSigs;
+    mutable bool bMissingSigsUpdated;
+
 public:
-    TransactionBuilder() { }
-    TransactionBuilder(const Transaction& tx) { this->setTx(tx); }
+    TransactionBuilder() : bMissingSigsUpdated(false) { }
+    TransactionBuilder(const Transaction& tx) : bMissingSigsUpdated(false) { this->setTx(tx); }
     
     ~TransactionBuilder();
 
@@ -664,16 +686,22 @@ public:
     void setTx(const Transaction& tx);
     Transaction getTx(ScriptSigType scriptSigType) const;
 
+    void addDependency(const Transaction& tx);
+    void stripDependencies();
+
+    std::vector<uchar_vector> getDependencyHashes() const;
+    uint64_t getDependencyOutputValue(const uchar_vector& outHash, uint32_t outIndex) const;
+    
     void addInput(const uchar_vector& outHash, uint outIndex, const uchar_vector& pubKey, uint32_t sequence = 0xffffffff);
     void removeInput(uint32_t index);
 
     void addOutput(const std::string& address, uint64_t value, const unsigned char addressVersions[] = BITCOIN_ADDRESS_VERSIONS);
     void removeOutput(uint32_t index);
 
+    std::vector<InputSigRequest>& getMissingSigs() const;
     std::string getMissingSigsJson() const;
-    void sign(uint index, const uchar_vector& pubKey, const std::string& privKey, SigHashType sigHashType = SIGHASH_ALL);
 
-    std::vector<uchar_vector> getDependencyHashes() const;
+    void sign(uint index, const uchar_vector& pubKey, const std::string& privKey, SigHashType sigHashType = SIGHASH_ALL);
 };
 
 void TransactionBuilder::setSerialized(const uchar_vector& bytes)
@@ -760,6 +788,8 @@ void TransactionBuilder::setTx(const Transaction& tx)
         StandardTxOut* pTxOut = new StandardTxOut(tx.outputs[i]);
         outputs.push_back(pTxOut);
     }
+
+    bMissingSigsUpdated = false;
 }
 
 // TODO: make this more efficient - avoid unnecessary reallocations and copies
@@ -779,6 +809,37 @@ Transaction TransactionBuilder::getTx(ScriptSigType scriptSigType) const
     }
 
     return tx;
+}
+
+void TransactionBuilder::addDependency(const Transaction& tx)
+{
+    mapDependencies[tx.getHashLittleEndian()] = tx;
+    bMissingSigsUpdated = false;
+}
+
+void TransactionBuilder::stripDependencies()
+{
+}
+
+std::vector<uchar_vector> TransactionBuilder::getDependencyHashes() const
+{
+    std::vector<uchar_vector> hashes;
+
+    std::map<uchar_vector, Transaction>::const_iterator it = mapDependencies.begin();
+    for (; it != mapDependencies.end(); ++it) {
+        hashes.push_back(it->first);
+    }
+    return hashes;
+}
+
+uint64_t TransactionBuilder::getDependencyOutputValue(const uchar_vector& outHash, uint32_t outIndex) const
+{
+    std::map<uchar_vector, Transaction>::const_iterator it = mapDependencies.find(outHash);
+    if (it == mapDependencies.end() || outIndex >= it->second.outputs.size()) {
+        throw std::runtime_error("Dependency output not found.");
+    }
+
+    return it->second.outputs[outIndex].value;
 }
 
 void TransactionBuilder::addInput(const uchar_vector& outHash, uint32_t outIndex, const uchar_vector& pubKey, uint32_t sequence)
@@ -815,6 +876,8 @@ void TransactionBuilder::addInput(const uchar_vector& outHash, uint32_t outIndex
         MofNTxIn* pTxIn = new MofNTxIn(outHash, outIndex, pubKey, sequence);
         inputs.push_back(pTxIn);    
     }
+
+    bMissingSigsUpdated = false;
 }
 
 void TransactionBuilder::removeInput(uint32_t index)
@@ -827,6 +890,8 @@ void TransactionBuilder::removeInput(uint32_t index)
 
     delete inputs[index];
     inputs.erase(inputs.begin() + index);
+
+    bMissingSigsUpdated = false;
 }
 
 void TransactionBuilder::addOutput(const std::string& address, uint64_t value, const unsigned char addressVersions[])
@@ -854,31 +919,50 @@ void TransactionBuilder::removeOutput(uint32_t index)
     outputs.erase(outputs.begin() + index);
 }
 
-std::string TransactionBuilder::getMissingSigsJson() const
+std::vector<InputSigRequest>& TransactionBuilder::getMissingSigs() const
 {
-    std::stringstream ss;
-    ss << "[\n";
+    if (bMissingSigsUpdated) {
+        return missingSigs;
+    }
+
+    missingSigs.clear();
     for (uint i = 0; i < inputs.size(); i++) {
         std::vector<uchar_vector> pubKeys;
-        uint minSigsStillNeeded;
-        const uchar_vector& outpointHash = inputs[i]->getOutpointHash();
-        uint32_t outpointIndex = inputs[i]->getOutpointIndex();
-        std::cout << "outpointHash: " << outpointHash.getHex() << std::endl;
-        std::cout << "outpointIndex: " << outpointIndex << std::endl;
+        uint32_t minSigsStillNeeded;
         inputs[i]->getPubKeysMissingSig(pubKeys, minSigsStillNeeded);
+
+        uint64_t value;
+        try {
+            value = getDependencyOutputValue(inputs[i]->getOutpointHash(), inputs[i]->getOutpointIndex());
+        }
+        catch (...) {
+            value = 0xffffffffffffffffull;
+        }
+        missingSigs.push_back(InputSigRequest(i, minSigsStillNeeded, pubKeys, value));
+    }
+    bMissingSigsUpdated = true;
+    return missingSigs;
+}
+
+std::string TransactionBuilder::getMissingSigsJson() const
+{
+    getMissingSigs();
+    std::stringstream ss;
+    ss << "[\n";
+    for (uint i = 0; i < missingSigs.size(); i++) {
         if (i > 0) ss << ",\n";
         ss << "    {"
-           <<  "\n        \"index\" : " << i
-           << ",\n        \"minSigsStillNeeded\" : " << minSigsStillNeeded
+           <<  "\n        \"index\" : " << missingSigs[i].inputIndex
+           << ",\n        \"minSigsStillNeeded\" : " << missingSigs[i].minSigsStillNeeded
            << ",\n        \"pubKeys\" : [";
-        for (uint j = 0; j < pubKeys.size(); j++) {
+        for (uint j = 0; j < missingSigs[i].pubKeys.size(); j++) {
             if (j > 0) ss << ", ";
-            ss << "\"" << pubKeys[j].getHex() << "\"";
+            ss << "\"" << missingSigs[i].pubKeys[j].getHex() << "\"";
         }
         ss << "]";
-        std::map<uchar_vector, Transaction>::const_iterator it = mapDependencies.find(outpointHash);
-        if (it != mapDependencies.end() && outpointIndex < it->second.outputs.size()) {
-            ss << ",\n        \"value\" : \"" << it->second.outputs[outpointIndex].value << "\"";
+
+        if (missingSigs[i].value != 0xffffffffffffffffull) {
+            ss << ",\n        \"value\" : \"" << missingSigs[i].value << "\"";
         }
         ss << "\n    }";
     }
@@ -907,17 +991,6 @@ void TransactionBuilder::sign(uint index, const uchar_vector& pubKey, const std:
     }
 
     inputs[index]->addSig(pubKey, sig, sigHashType);
-}
-
-std::vector<uchar_vector> TransactionBuilder::getDependencyHashes() const
-{
-    std::vector<uchar_vector> hashes;
-
-    std::map<uchar_vector, Transaction>::const_iterator it = mapDependencies.begin();
-    for (; it != mapDependencies.end(); ++it) {
-        hashes.push_back(it->first);        
-    }
-    return hashes;
 }
 
 void TransactionBuilder::clearInputs()
