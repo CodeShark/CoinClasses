@@ -37,9 +37,9 @@
 #include <set>
 #include <sstream>
 
-const unsigned char BITCOIN_ADDRESS_VERSIONS[] = {0x00, 0x05};
+namespace Coin {
 
-using namespace Coin;
+const unsigned char BITCOIN_ADDRESS_VERSIONS[] = {0x00, 0x05};
 
 // TODO: Move opPushData and bytesPushData to a script manipulation module and use them
 // wherever scripts are accessed.
@@ -1050,5 +1050,7 @@ TransactionBuilder::~TransactionBuilder()
     clearInputs();
     clearOutputs();
 }
+
+} // namespace Coin
 
 #endif // STANDARD_TRANSACTIONS_H__
