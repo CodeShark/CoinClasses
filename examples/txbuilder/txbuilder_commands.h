@@ -41,6 +41,7 @@ std::string addaddressinput(bool bHelp, params_t& params);
 std::string addmofninput(bool bHelp, params_t& params);
 std::string adddeps(bool bHelp, params_t& params);
 std::string listdeps(bool bHelp, params_t& params);
+std::string stripdeps(bool bHelp, params_t& params);
 std::string addinput(bool bHelp, params_t& params);
 std::string removeinput(bool bHelp, params_t& params);
 std::string sign(bool bHelp, params_t& params);

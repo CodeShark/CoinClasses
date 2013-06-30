@@ -34,6 +34,7 @@
 #include "hash.h"
 
 #include <map>
+#include <set>
 #include <sstream>
 
 const unsigned char BITCOIN_ADDRESS_VERSIONS[] = {0x00, 0x05};
@@ -819,6 +820,21 @@ void TransactionBuilder::addDependency(const Transaction& tx)
 
 void TransactionBuilder::stripDependencies()
 {
+    std::set<uchar_vector> outHashes;
+    for (uint i = 0; i < inputs.size(); i++) {
+        outHashes.insert(inputs[i]->getOutpointHash());
+    }
+
+    std::vector<uchar_vector> removeHashes;
+    for (auto it = mapDependencies.begin(); it != mapDependencies.end(); ++it) {
+        if (outHashes.find(it->first) == outHashes.end())   {
+            removeHashes.push_back(it->first);
+        }
+    }
+
+    for (auto it = removeHashes.begin(); it != removeHashes.end(); ++it) {
+        mapDependencies.erase(*it);
+    }
 }
 
 std::vector<uchar_vector> TransactionBuilder::getDependencyHashes() const

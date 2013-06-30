@@ -157,6 +157,18 @@ std::string listdeps(bool bHelp, params_t& params)
     return ss.str();
 }
 
+std::string stripdeps(bool bHelp, params_t& params)
+{
+    if (bHelp || params.size() != 1) {
+        return "stripdeps <txbuilder blob> - strips the blob of all unused dependencies.";
+    }
+
+    TransactionBuilder txBuilder;
+    txBuilder.setSerialized(params[0]);
+    txBuilder.stripDependencies();
+    return txBuilder.getSerialized().getHex();
+}
+
 std::string addinput(bool bHelp, params_t& params)
 {
     if (bHelp || params.size() < 4 || params.size() > 5) {
