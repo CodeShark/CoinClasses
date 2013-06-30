@@ -688,7 +688,10 @@ public:
     Transaction getTx(ScriptSigType scriptSigType) const;
 
     void addDependency(const Transaction& tx);
-    void stripDependencies();
+    bool removeDependency(const uchar_vector& txHash); // Remove specific dependency by hash. Returns true if anything changed.
+
+    bool stripDependencies(); // Only remove unused dependencies. Returns true if anything changed.
+    void clearDependencies(); // Remove all dependencies
 
     std::vector<uchar_vector> getDependencyHashes() const;
     uint64_t getDependencyOutputValue(const uchar_vector& outHash, uint32_t outIndex) const;
@@ -818,7 +821,12 @@ void TransactionBuilder::addDependency(const Transaction& tx)
     bMissingSigsUpdated = false;
 }
 
-void TransactionBuilder::stripDependencies()
+bool TransactionBuilder::removeDependency(const uchar_vector& txHash)
+{
+    return (mapDependencies.erase(txHash) > 0);
+}
+
+bool TransactionBuilder::stripDependencies()
 {
     std::set<uchar_vector> outHashes;
     for (uint i = 0; i < inputs.size(); i++) {
@@ -835,6 +843,14 @@ void TransactionBuilder::stripDependencies()
     for (auto it = removeHashes.begin(); it != removeHashes.end(); ++it) {
         mapDependencies.erase(*it);
     }
+
+    return (removeHashes.size() > 0);
+}
+
+void TransactionBuilder::clearDependencies()
+{
+    mapDependencies.clear();
+    bMissingSigsUpdated = false;
 }
 
 std::vector<uchar_vector> TransactionBuilder::getDependencyHashes() const
