@@ -685,7 +685,7 @@ public:
     uchar_vector getSerialized() const;
     
     void setTx(const Transaction& tx);
-    Transaction getTx(ScriptSigType scriptSigType) const;
+    Transaction getTx(ScriptSigType scriptSigType, int index = -1) const;
 
     void addDependency(const Transaction& tx);
     bool removeDependency(const uchar_vector& txHash); // Remove specific dependency by hash. Returns true if anything changed.
@@ -797,14 +797,19 @@ void TransactionBuilder::setTx(const Transaction& tx)
 }
 
 // TODO: make this more efficient - avoid unnecessary reallocations and copies
-Transaction TransactionBuilder::getTx(ScriptSigType scriptSigType) const
+Transaction TransactionBuilder::getTx(ScriptSigType scriptSigType, int index) const
 {
     Transaction tx;
     tx.version = version;
     tx.lockTime = lockTime;
 
     for (uint i = 0; i < inputs.size(); i++) {
-        inputs[i]->setScriptSig(scriptSigType);
+        if (index == -1 || index == (int)i) {
+            inputs[i]->setScriptSig(scriptSigType);
+        }
+        else {
+            inputs[i]->scriptSig.clear();
+        }
         tx.addInput(*inputs[i]);
     }
 
@@ -1008,7 +1013,7 @@ void TransactionBuilder::sign(uint index, const uchar_vector& pubKey, const std:
         throw std::runtime_error("Invalid input index.");
     }
 
-    Transaction tx = getTx(SCRIPT_SIG_SIGN);
+    Transaction tx = getTx(SCRIPT_SIG_SIGN, index);
     uchar_vector hashToSign = tx.getHashWithAppendedCode(sigHashType);
     std::cout << "~~hashToSign: " << hashToSign.getHex() << std::endl;
 
