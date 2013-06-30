@@ -60,6 +60,7 @@ class CoinKey
 protected:
     EC_KEY* pKey;
     bool bSet;
+    bool bCompressed;
 
     unsigned int addressVersion;
     unsigned int walletImportVersion;
@@ -71,18 +72,22 @@ public:
 
     CoinKey& operator=(const CoinKey& other);
 
+    void setVersionBytes(unsigned int addressVersion, unsigned int walletImportVersion) { this->addressVersion = addressVersion, this->walletImportVersion = walletImportVersion; }
+    void setCompressed(bool bCompressed) { this->bCompressed = bCompressed; }
+    bool isCompressed() const { return bCompressed; }
+
     bool isSet() const;
     void generateNewKey();
 
     // determines whether we're using a full 279-byte DER key or a shorter 32-byte one according to the length of privateKey
-    bool setPrivateKey(const uchar_vector_secure& privateKey);
+    bool setPrivateKey(const uchar_vector_secure& privateKey, bool bCompressed = true);
     uchar_vector_secure getPrivateKey(unsigned int privateKeyFormat = PRIVATE_KEY_32) const;
 
     bool setWalletImport(const string_secure& walletImport);
     string_secure getWalletImport() const;
 
     bool setPublicKey(const uchar_vector& publicKey);
-    uchar_vector getPublicKey(bool bCompressed = true) const;
+    uchar_vector getPublicKey() const;
 
     std::string getAddress() const;
 

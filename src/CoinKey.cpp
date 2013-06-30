@@ -132,6 +132,7 @@ err:
 
 CoinKey::CoinKey(unsigned int addressVersion, unsigned int walletImportVersion)
 {
+    this->bCompressed = true;
     this->addressVersion = addressVersion;
     this->walletImportVersion = walletImportVersion;
     this->pKey = EC_KEY_new_by_curve_name(EC_CURVE_NAME);
@@ -142,6 +143,7 @@ CoinKey::CoinKey(unsigned int addressVersion, unsigned int walletImportVersion)
 
 CoinKey::CoinKey(const CoinKey& other)
 {
+    this->bCompressed = other.bCompressed;
     this->pKey = EC_KEY_dup(other.pKey);
     if (!this->pKey)
         throw CoinKeyError("CoinKey::CoinKey(const CoinKey&) : EC_KEY_dup failed");
@@ -150,6 +152,7 @@ CoinKey::CoinKey(const CoinKey& other)
 
 CoinKey& CoinKey::operator=(const CoinKey& other)
 {
+    this->bCompressed = other.bCompressed;
     if (!EC_KEY_copy(this->pKey, other.pKey))
         throw CoinKeyError("CoinKey::operator=(const CoinKey&) : EC_KEY_copy failed");
     this->bSet = other.bSet;
@@ -174,16 +177,17 @@ void CoinKey::generateNewKey()
 }
 
 // determines whether we're using a full 279-byte DER key or a shorter 32-byte one according to the length of privateKey
-bool CoinKey::setPrivateKey(const uchar_vector_secure& privateKey)
+bool CoinKey::setPrivateKey(const uchar_vector_secure& privateKey, bool bCompressed)
 {
     if (privateKey.size() == PRIVATE_KEY_DER_LENGTH) {
         const unsigned char* pBegin = &privateKey[0];
         if (!d2i_ECPrivateKey(&this->pKey, &pBegin, privateKey.size()))
             return false;
         this->bSet = true;
+        this->bCompressed = bCompressed;
         return true;
     }
-    else if ((privateKey.size() == PRIVATE_KEY_LENGTH) || (privateKey.size() == PRIVATE_KEY_LENGTH + 1)) {
+    else if (privateKey.size() == PRIVATE_KEY_LENGTH) {
         EC_KEY_free(this->pKey);
         this->pKey = EC_KEY_new_by_curve_name(EC_CURVE_NAME);
         if (this->pKey == NULL)
@@ -194,6 +198,7 @@ bool CoinKey::setPrivateKey(const uchar_vector_secure& privateKey)
         if (!EC_KEY_regenerate_key(this->pKey, bn))
             throw CoinKeyError("CoinKey::setPrivateKey() : EC_KEY_regenerate_key failed");
         BN_clear_free(bn);
+        this->bCompressed = bCompressed;
         this->bSet = true;
         return true;
     }
@@ -231,12 +236,26 @@ bool CoinKey::setWalletImport(const string_secure& walletImport)
     uchar_vector_secure privateKey;
     if (!fromBase58Check(walletImport, privateKey, this->walletImportVersion))
         return false;
+
+    if (privateKey.size() == PRIVATE_KEY_LENGTH) {
+        bCompressed = false;
+    }
+    else if (privateKey.size() == PRIVATE_KEY_LENGTH + 1 && privateKey.back() == 0x01) {
+        bCompressed = true;
+        privateKey.pop_back();
+    }
+    else {
+        throw CoinKeyError("CoinKey::setWalletImport() : Invalid key length");
+    }
+
     return this->setPrivateKey(privateKey);
 }
 
 string_secure CoinKey::getWalletImport() const
 {
-    return toBase58Check(this->getPrivateKey(PRIVATE_KEY_32), this->walletImportVersion);
+    uchar_vector_secure privKey = this->getPrivateKey(PRIVATE_KEY_32);
+    if (bCompressed) privKey.push_back(0x01);
+    return toBase58Check(privKey, this->walletImportVersion);
 }
 
 bool CoinKey::setPublicKey(const uchar_vector& publicKey)
@@ -248,7 +267,7 @@ bool CoinKey::setPublicKey(const uchar_vector& publicKey)
     return true;
 }
 
-uchar_vector CoinKey::getPublicKey(bool bCompressed) const
+uchar_vector CoinKey::getPublicKey() const
 {
     EC_KEY_set_conv_form(this->pKey, bCompressed ? POINT_CONVERSION_COMPRESSED : POINT_CONVERSION_UNCOMPRESSED);
     int nSize = i2o_ECPublicKey(this->pKey, NULL);
