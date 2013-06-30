@@ -23,8 +23,8 @@ $(SRC_PATH)/obj/%.o: $(SRC_PATH)/%.cpp
 	$(CXX) $(CXX_FLAGS) -c -o $@ $< \
 	-I$(SRC_PATH)
 
-txbuilder: $(OBJS:obj/%=$(SRC_PATH)/obj/%)
-	$(CXX) $(CXX_FLAGS) -o $@ txbuilder.cpp txbuilder_commands.cpp $^ \
+txbuilder: $(OBJS:obj/%=$(SRC_PATH)/obj/%) txbuilder.cpp txbuilder_commands.cpp
+	$(CXX) $(CXX_FLAGS) -o $@ $^ \
 	-I$(SRC_PATH) \
 	$(LIBS)
 
