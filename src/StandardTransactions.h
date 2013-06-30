@@ -1022,6 +1022,10 @@ void TransactionBuilder::sign(uint index, const uchar_vector& pubKey, const std:
         throw std::runtime_error("Invalid private key.");
     }
 
+    if (key.getPublicKey() != pubKey) {
+        throw std::runtime_error("Private key does not correspond to public key.");
+    }
+
     uchar_vector sig;
     if (!key.sign(hashToSign, sig)) {
         throw std::runtime_error("Signing failed.");
