@@ -234,6 +234,8 @@ uchar_vector_secure CoinKey::getPrivateKey(unsigned int privateKeyFormat) const
 bool CoinKey::setWalletImport(const string_secure& walletImport)
 {
     uchar_vector_secure privateKey;
+    bool bCompressed;
+
     if (!fromBase58Check(walletImport, privateKey, this->walletImportVersion))
         return false;
 
@@ -248,7 +250,7 @@ bool CoinKey::setWalletImport(const string_secure& walletImport)
         throw CoinKeyError("CoinKey::setWalletImport() : Invalid key length");
     }
 
-    return this->setPrivateKey(privateKey);
+    return this->setPrivateKey(privateKey, bCompressed);
 }
 
 string_secure CoinKey::getWalletImport() const
@@ -269,7 +271,7 @@ bool CoinKey::setPublicKey(const uchar_vector& publicKey)
 
 uchar_vector CoinKey::getPublicKey() const
 {
-    EC_KEY_set_conv_form(this->pKey, bCompressed ? POINT_CONVERSION_COMPRESSED : POINT_CONVERSION_UNCOMPRESSED);
+    EC_KEY_set_conv_form(this->pKey, this->bCompressed ? POINT_CONVERSION_COMPRESSED : POINT_CONVERSION_UNCOMPRESSED); 
     int nSize = i2o_ECPublicKey(this->pKey, NULL);
     if (nSize == 0)
         throw CoinKeyError("CoinKey::getPublicKey() : i2o_ECPublicKey failed");
