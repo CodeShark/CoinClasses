@@ -207,6 +207,9 @@ bool CoinKey::setPrivateKey(const uchar_vector_secure& privateKey, bool bCompres
 
 uchar_vector_secure CoinKey::getPrivateKey(unsigned int privateKeyFormat) const
 {
+    if (!this->bSet) {
+        throw CoinKeyError("CoinLey::getPrivateKey() : key not set.");
+    }
     if (privateKeyFormat == PRIVATE_KEY_DER_279) {
         int nSize = i2d_ECPrivateKey(this->pKey, NULL);
         if (!nSize)
@@ -272,6 +275,9 @@ bool CoinKey::setPublicKey(const uchar_vector& publicKey)
 
 uchar_vector CoinKey::getPublicKey() const
 {
+    if (!this->bSet) {
+        throw CoinKeyError("CoinKey::getPublicKey() : key is not set.");
+    }
     EC_KEY_set_conv_form(this->pKey, this->bCompressed ? POINT_CONVERSION_COMPRESSED : POINT_CONVERSION_UNCOMPRESSED); 
     int nSize = i2o_ECPublicKey(this->pKey, NULL);
     if (nSize == 0)
