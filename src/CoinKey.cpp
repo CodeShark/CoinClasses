@@ -265,6 +265,7 @@ bool CoinKey::setPublicKey(const uchar_vector& publicKey)
     const unsigned char* pBegin = &publicKey[0];
     if (!o2i_ECPublicKey(&this->pKey, &pBegin, publicKey.size()))
         return false;
+    this->bCompressed = (publicKey.size() == 33);
     this->bSet = true;
     return true;
 }
