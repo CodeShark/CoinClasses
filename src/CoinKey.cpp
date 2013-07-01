@@ -247,7 +247,7 @@ bool CoinKey::setWalletImport(const string_secure& walletImport)
         privateKey.pop_back();
     }
     else {
-        throw CoinKeyError("CoinKey::setWalletImport() : Invalid key length");
+        return false;
     }
 
     return this->setPrivateKey(privateKey, bCompressed);
