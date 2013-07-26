@@ -426,6 +426,12 @@ public:
         this->hashStop = getBlocksMessage.hashStop;
     }
     GetBlocksMessage(const uchar_vector& bytes) { this->setSerialized(bytes); }
+    GetBlocksMessage(uint32_t version, const std::vector<uchar_vector>& blockLocatorHashes, const uchar_vector& hashStop = g_zero32bytes)
+    {
+        this->version = version;
+        this->blockLocatorHashes = blockLocatorHashes;
+        this->hashStop = hashStop;
+    }
     GetBlocksMessage(const std::string& hex);
 
     const char* getCommand() const { return "getblocks"; }
@@ -463,7 +469,7 @@ public:
     }
 
     const char* getCommand() const { return "getheaders"; }
-    uint64_t getSize() const { return VarInt(this->blockLocatorHashes.size()).getSize() + 32*(this->blockLocatorHashes.size() + 1); }
+    uint64_t getSize() const { return VarInt(this->blockLocatorHashes.size()).getSize() + 32*this->blockLocatorHashes.size() + 36; }
     uchar_vector getSerialized() const;
     void setSerialized(const uchar_vector& bytes);
 

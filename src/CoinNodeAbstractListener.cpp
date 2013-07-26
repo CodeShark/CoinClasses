@@ -117,6 +117,13 @@ void CoinNodeAbstractListener::getBlocks(const std::vector<std::string>& locator
     this->sendMessage(msg);
 }
 
+void CoinNodeAbstractListener::getBlocks(const std::vector<uchar_vector>& locatorHashes, const uchar_vector& hashStop)
+{
+    GetBlocksMessage getBlocks(m_version, locatorHashes, hashStop);
+    CoinNodeMessage msg(this->getMagic(), &getBlocks);
+    this->sendMessage(msg);
+}
+
 void CoinNodeAbstractListener::getHeaders(const std::vector<std::string>& locatorHashes, const std::string& hashStop)
 {
     GetHeadersMessage getHeaders;
@@ -125,6 +132,13 @@ void CoinNodeAbstractListener::getHeaders(const std::vector<std::string>& locato
         getHeaders.blockLocatorHashes.push_back(locatorHashes[i]);
     }
     getHeaders.hashStop = hashStop;
+    CoinNodeMessage msg(this->getMagic(), &getHeaders);
+    this->sendMessage(msg);
+}
+
+void CoinNodeAbstractListener::getHeaders(const std::vector<uchar_vector>& locatorHashes, const uchar_vector& hashStop)
+{
+    GetHeadersMessage getHeaders(m_version, locatorHashes, hashStop);
     CoinNodeMessage msg(this->getMagic(), &getHeaders);
     this->sendMessage(msg);
 }
