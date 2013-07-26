@@ -73,6 +73,10 @@ void coinMessageHandler(CoinNodeSocket* pNodeSocket, const CoinNodeMessage& mess
             AddrMessage* pAddr = static_cast<AddrMessage*>(message.getPayload());
             pNodeSocket->pListener->onAddr(*pAddr);
         }
+        else if (command == "headers") {
+            HeadersMessage* pHeaders = static_cast<HeadersMessage*>(message.getPayload());
+            pNodeSocket->pListener->onHeaders(*pHeaders);
+        }
     }
     catch (const std::exception& e) {
         std::cout << "Exception in coinMessageHandler(): " << e.what() << std::endl;

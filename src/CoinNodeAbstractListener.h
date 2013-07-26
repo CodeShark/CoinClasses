@@ -98,6 +98,7 @@ public:
     virtual void onBlock(CoinBlock& block) { };
     virtual void onTx(Transaction& tx) { };
     virtual void onAddr(AddrMessage& addr) { };
+    virtual void onHeaders(HeadersMessage& headers) { };
 
     virtual void onSocketClosed(int code) { };
 };

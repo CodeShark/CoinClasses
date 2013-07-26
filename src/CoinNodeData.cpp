@@ -1419,7 +1419,7 @@ void CoinBlockHeader::setSerialized(const uchar_vector& bytes)
 string CoinBlockHeader::toString() const
 {
     stringstream ss;
-    ss << "hash: " << this->getHash().getHex() << ", version: " << this->version << ", prevBlockHash: " << this->prevBlockHash.getHex()
+    ss << "hash: " << this->getHashLittleEndian().getHex() << ", version: " << this->version << ", prevBlockHash: " << this->prevBlockHash.getHex()
        << ", merkleRoot: " << this->merkleRoot.getHex() << ", timestamp: " << timeToString(this->timestamp)
        << ", bits: " << this->bits << ", nonce: " << this->nonce;
     return ss.str();
@@ -1428,7 +1428,7 @@ string CoinBlockHeader::toString() const
 string CoinBlockHeader::toIndentedString(uint spaces) const
 {
     stringstream ss;
-    ss << blankSpaces(spaces) << "hash: " << this->getHash().getHex() << endl
+    ss << blankSpaces(spaces) << "hash: " << this->getHashLittleEndian().getHex() << endl
        << blankSpaces(spaces) << "version: " << dec << this->version << endl
        << blankSpaces(spaces) << "prevBlockHash: " << this->prevBlockHash.getHex() << endl
        << blankSpaces(spaces) << "merkleRoot: " << this->merkleRoot.getHex() << endl
