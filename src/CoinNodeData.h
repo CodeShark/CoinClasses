@@ -443,18 +443,21 @@ public:
 class GetHeadersMessage : public CoinNodeStructure
 {
 public:
+    uint32_t version;
     std::vector<uchar_vector> blockLocatorHashes;
     uchar_vector hashStop;
 
     GetHeadersMessage() { this->hashStop = g_zero32bytes; }
     GetHeadersMessage(const GetHeadersMessage& getHeadersMessage)
     {
+        this->version = getHeadersMessage.version;
         this->blockLocatorHashes = getHeadersMessage.blockLocatorHashes;
         this->hashStop = getHeadersMessage.hashStop;
     }
     GetHeadersMessage(const uchar_vector& bytes) { this->setSerialized(bytes); }
-    GetHeadersMessage(const std::vector<uchar_vector>& blockLocatorHashes, const uchar_vector& hashStop = g_zero32bytes)
+    GetHeadersMessage(uint32_t version, const std::vector<uchar_vector>& blockLocatorHashes, const uchar_vector& hashStop = g_zero32bytes)
     {
+        this->version = version;
         this->blockLocatorHashes = blockLocatorHashes;
         this->hashStop = hashStop;
     }

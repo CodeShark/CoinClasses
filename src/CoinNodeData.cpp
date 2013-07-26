@@ -921,7 +921,8 @@ string GetBlocksMessage::toIndentedString(uint spaces) const
 //
 uchar_vector GetHeadersMessage::getSerialized() const
 {
-    uchar_vector rval = VarInt(this->blockLocatorHashes.size()).getSerialized();
+    uchar_vector rval = uint_to_vch(this->version, _BIG_ENDIAN);
+    rval += VarInt(this->blockLocatorHashes.size()).getSerialized();
     for (uint i = 0; i < this->blockLocatorHashes.size(); i++)
         rval += uchar_vector(this->blockLocatorHashes[i].begin(), this->blockLocatorHashes[i].begin() + 32).getReverse();
     rval += uchar_vector(this->hashStop).getReverse();
@@ -933,7 +934,8 @@ void GetHeadersMessage::setSerialized(const uchar_vector& bytes)
     if (bytes.size() < MIN_GET_BLOCKS_SIZE)
         throw runtime_error("Invalid data - GetHeadersMessage too small.");
 
-    VarInt count(uchar_vector(bytes.begin(), bytes.end())); uint pos = count.getSize();
+    this->version = vch_to_uint<uint32_t>(bytes, _BIG_ENDIAN); uint pos = 4;
+    VarInt count(uchar_vector(bytes.begin(), bytes.end())); pos += count.getSize();
     if (bytes.size() < pos + 32*(count.value + 1))
         throw runtime_error("Invalid data - GetHeadersMessage has wrong length.");
     this->blockLocatorHashes.clear();

@@ -29,8 +29,8 @@ $(SRC_PATH)/obj/%.o: $(SRC_PATH)/%.cpp
 	$(CXX) $(CXX_FLAGS) -c -o $@ $< \
 	-I$(SRC_PATH)
 
-listener2: $(OBJS:obj/%=$(SRC_PATH)/obj/%)
-	$(CXX) $(CXX_FLAGS) -o $@ listener2.cpp $^ \
+listener2: listener2.cpp $(OBJS:obj/%=$(SRC_PATH)/obj/%)
+	$(CXX) $(CXX_FLAGS) -o $@ $^ \
 	-I$(SRC_PATH) \
 	$(LIBS)
 

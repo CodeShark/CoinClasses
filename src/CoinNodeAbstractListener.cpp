@@ -117,6 +117,18 @@ void CoinNodeAbstractListener::getBlocks(const std::vector<std::string>& locator
     this->sendMessage(msg);
 }
 
+void CoinNodeAbstractListener::getHeaders(const std::vector<std::string>& locatorHashes, const std::string& hashStop)
+{
+    GetHeadersMessage getHeaders;
+    getHeaders.version = m_version;
+    for (unsigned int i = 0; i < locatorHashes.size(); i++) {
+        getHeaders.blockLocatorHashes.push_back(locatorHashes[i]);
+    }
+    getHeaders.hashStop = hashStop;
+    CoinNodeMessage msg(this->getMagic(), &getHeaders);
+    this->sendMessage(msg);
+}
+
 void CoinNodeAbstractListener::askForTx(const std::string& hash)
 {
     InventoryItem block(MSG_TX, uchar_vector(hash));
