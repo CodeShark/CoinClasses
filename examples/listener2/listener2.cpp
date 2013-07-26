@@ -124,8 +124,13 @@ int main(int argc, char* argv[])
         cout << "Starting listener..." << flush;
         listener.start();
         cout << "started." << endl << endl;
-        listener.askForPeers();
-        listener.askForBlock("00000000000000659abaa8a2fd7959af0615bc1a9f1b3e4069b2b52e61d21923");
+        //listener.askForPeers();
+        //listener.askForBlock("00000000000000659abaa8a2fd7959af0615bc1a9f1b3e4069b2b52e61d21923");
+        vector<string> locatorHashes;
+        locatorHashes.push_back("0000000000000014ec7f764280f05a0c1c297de0446f72ea68a493376588316f");
+        locatorHashes.push_back("00000000000000680fc2144d0572119e48d8683b7fc70f673c5d819f54bbc536");
+        locatorHashes.push_back("0000000000000087da12fd962dbd6e265b9028a85add866c3ab88e0b7c74e804");
+        listener.getBlocks(locatorHashes);
     }
     catch (const exception& e)
     {

@@ -82,6 +82,8 @@ public:
     virtual void sendMessage(const CoinNodeMessage& pMessage) { m_nodeSocket.sendMessage(pMessage); }
 
     virtual void askForBlock(const std::string& hash);
+    virtual void getBlocks(const std::vector<std::string>& locatorHashes,
+                           const std::string& hashStop = "0000000000000000000000000000000000000000000000000000000000000000");
     virtual void askForTx(const std::string& hash);
     virtual void askForPeers();
     virtual void askForMempool();
