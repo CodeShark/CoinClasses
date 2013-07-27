@@ -127,8 +127,10 @@ public:
     // Comparison Operators
     bool operator==(const BigInt& rhs) const { return (BN_cmp(this->bn, rhs.bn) == 0); }
     bool operator!=(const BigInt& rhs) const { return (BN_cmp(this->bn, rhs.bn) != 0); }
-    bool operator<(const BigInt& rhs) const { return (BN_cmp(this->bn, rhs.bn) == -1); }
-    bool operator>(const BigInt& rhs) const { return (BN_cmp(this->bn, rhs.bn) == 1); }
+    bool operator<(const BigInt& rhs) const { return (BN_cmp(this->bn, rhs.bn) < 0); }
+    bool operator>(const BigInt& rhs) const { return (BN_cmp(this->bn, rhs.bn) > 0); }
+    bool operator<=(const BigInt& rhs) const { return (BN_cmp(this->bn, rhs.bn) <= 0); }
+    bool operator>=(const BigInt& rhs) const { return (BN_cmp(this->bn, rhs.bn) >= 0); }
     bool isZero() const { return BN_is_zero(this->bn); }
 
     // Accessor Methods
