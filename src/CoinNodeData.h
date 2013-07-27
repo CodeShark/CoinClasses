@@ -632,6 +632,8 @@ public:
 
     const BigInt getTarget() const;
     void setTarget(const BigInt& target);
+
+    const BigInt getWork() const;
 };
 
 class CoinBlock : public CoinNodeStructure

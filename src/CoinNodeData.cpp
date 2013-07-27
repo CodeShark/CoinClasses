@@ -1458,6 +1458,13 @@ void CoinBlockHeader::setTarget(const BigInt& target)
     bits = (nExp << 24) | nMantissa;
 }
 
+const BigInt CoinBlockHeader::getWork() const
+{
+    BigInt target = getTarget();
+    if (target <= 0) return 0;
+    return (BigInt(1) << 256) / (getTarget() + 1);
+}
+
 string CoinBlockHeader::toString() const
 {
     stringstream ss;
