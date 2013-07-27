@@ -1416,6 +1416,48 @@ void CoinBlockHeader::setSerialized(const uchar_vector& bytes)
     this->nonce = vch_to_uint<uint32_t>(uchar_vector(bytes.begin() + pos, bytes.begin() + pos + 4), _BIG_ENDIAN); pos += 4;
 }
 
+const BigInt CoinBlockHeader::getTarget() const
+{
+    uint32_t nExp = bits >> 24;
+    uint32_t nMantissa = bits & 0x007fffff;
+    if (nExp <= 3) {
+        nMantissa >>= 8*(3 - nExp);
+        BigInt target(nMantissa);
+        return target;
+    }
+    else {
+        BigInt target(nMantissa);
+        return target << (8*(nExp - 3));
+    }    
+}
+
+void CoinBlockHeader::setTarget(const BigInt& target)
+{
+    uint32_t nExp =  target.numBytes();
+    uint32_t nMantissa;
+    if (nExp <= 3) {
+        nMantissa = target.getWord() << 8*(3 - nExp);
+    }
+    else {
+        nMantissa = (target >> (8*(nExp - 3))).getWord();
+    }
+
+    if (nMantissa >> 24) {
+        throw std::runtime_error("Mantissa too large.");
+    }
+
+    if (nMantissa & 0x00800000) {
+        nMantissa >>= 8;
+        nExp++;
+    }
+
+    if (nExp >> 8) {
+        throw std::runtime_error("Exponent too large.");
+    }
+
+    bits = (nExp << 24) | nMantissa;
+}
+
 string CoinBlockHeader::toString() const
 {
     stringstream ss;

@@ -29,6 +29,8 @@
 #include "hash.h"
 #include "IPv6.h"
 
+#include "BigInt.h"
+
 #include <stdio.h>
 #include <cstring>
 #include <unistd.h>
@@ -627,6 +629,9 @@ public:
     std::string toIndentedString(uint spaces = 0) const;
 
     void incrementNonce() { this->nonce++; }
+
+    const BigInt getTarget() const;
+    void setTarget(const BigInt& target);
 };
 
 class CoinBlock : public CoinNodeStructure
