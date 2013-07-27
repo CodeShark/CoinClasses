@@ -149,6 +149,8 @@ public:
         BN_bin2bn(&bytes[0], bytes.size(), this->bn);
     }
 
+    int numBytes() const { return BN_num_bytes(this->bn); }
+
     std::string getHex() const
     {
         char* hex = BN_bn2hex(this->bn);
