@@ -91,6 +91,12 @@ public:
 
     // Assignment operations
     //BigInt& operator=(BN_ULONG rhs) { if (!BN_set_word(this->bn, rhs)) throw std::runtime_error("BIGNUM Error."); return *this; }
+    BigInt& operator=(const BigInt& bigint)
+    {
+        if (!(this->bn = BN_dup(bigint.bn))) throw std::runtime_error("BIGNUM allocation error.");
+        if (!(this->ctx = BN_CTX_new())) { BN_free(this->bn); throw std::runtime_error("BIGNUM allocation error."); }
+        return *this;
+    }
 
     // Arithmetic Operations
     BigInt& operator+=(const BigInt& rhs) { if (!BN_add(this->bn, this->bn, rhs.bn)) throw std::runtime_error("BN_add error."); return *this; }
