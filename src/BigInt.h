@@ -118,8 +118,11 @@ public:
     const BN_LONG operator%(BN_ULONG rightOperand) const { return BN_mod_word(this->bn, rightOperand); }
 
     // Bitshift Operators
-    BigInt& operator<<(int rhs) { if (!BN_lshift(this->bn, this->bn, rhs)) throw std::runtime_error("BN_lshift error."); return *this; }
-    BigInt& operator>>(int rhs) { if (!BN_rshift(this->bn, this->bn, rhs)) throw std::runtime_error("BN_rshift error."); return *this; }
+    BigInt& operator<<=(int rhs) { if (!BN_lshift(this->bn, this->bn, rhs)) throw std::runtime_error("BN_lshift error."); return *this; }
+    BigInt& operator>>=(int rhs) { if (!BN_rshift(this->bn, this->bn, rhs)) throw std::runtime_error("BN_rshift error."); return *this; }
+
+    const BigInt operator<<(int rhs) const { return BigInt(*this) <<= rhs; }
+    const BigInt operator>>(int rhs) const { return BigInt(*this) >>= rhs; }
 
     // Comparison Operators
     bool operator==(const BigInt& rhs) const { return (BN_cmp(this->bn, rhs.bn) == 0); }
