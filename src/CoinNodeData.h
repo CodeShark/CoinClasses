@@ -85,8 +85,10 @@ public:
 
     void clear() { this->hashes.clear(); }
     void addHash(const uchar_vector& hash) { this->hashes.push_back(hash); }
+    void addHashLittleEndian(const uchar_vector& hash) { this->hashes.push_back(uchar_vector(hash).getReverse()); }
 
     uchar_vector getRoot() const;
+    uchar_vector getRootLittleEndian() const { return getRoot().getReverse(); }
 };
 
 class CoinNodeStructure

@@ -107,12 +107,16 @@ uchar_vector MerkleTree::getRoot() const
 
     MerkleTree tree;
     for (uint i = 0; i < this->hashes.size(); i+=2) {
-        if (i+1 < this->hashes.size())
-            pairedHashes = this->hashes[i+1];
-        else
-            pairedHashes = this->hashes[i];
-        pairedHashes += this->hashes[i];
-        pairedHashes.reverse();
+        pairedHashes = hashes[i];
+        if (i+1 < this->hashes.size()) {
+            // two different nodes
+            pairedHashes += hashes[i+1];
+        }
+        else {
+            // the same node with itself
+            pairedHashes += hashes[i];
+        }
+        //pairedHashes.reverse();
         tree.addHash(sha256_2(pairedHashes));
     }
 
@@ -1565,7 +1569,7 @@ bool CoinBlock::isValidMerkleRoot() const
     for (uint i = 0; i < this->txs.size(); i++)
         tree.addHash(txs[i].getHash());
 
-    return (this->blockHeader.merkleRoot == tree.getRoot());
+    return (this->blockHeader.merkleRoot == tree.getRootLittleEndian());
 }
 
 void CoinBlock::updateMerkleRoot()
@@ -1574,7 +1578,7 @@ void CoinBlock::updateMerkleRoot()
     for (uint i = 0; i < this->txs.size(); i++)
         tree.addHash(txs[i].getHash());
 
-    this->blockHeader.merkleRoot = tree.getRoot();
+    this->blockHeader.merkleRoot = tree.getRootLittleEndian();
 }
 
 uint64_t CoinBlock::getTotalSent() const
