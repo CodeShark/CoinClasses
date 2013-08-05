@@ -253,6 +253,7 @@ public:
     uint64_t nonce;
     VarString subVersion;
     int32_t startHeight;
+    bool relay;
 
     VersionMessage () { }
     VersionMessage(
@@ -263,7 +264,8 @@ public:
         const NetworkAddress& senderAddress,
         uint64_t nonce,
         const char* subVersion,
-        int32_t startHeight
+        int32_t startHeight,
+        bool relay = true
     );
     VersionMessage(const uchar_vector bytes) { this->setSerialized(bytes); }
 

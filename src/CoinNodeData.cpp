@@ -582,7 +582,8 @@ VersionMessage::VersionMessage(
     const NetworkAddress& senderAddress,
     uint64_t nonce,
     const char* subVersion,
-    int32_t startHeight
+    int32_t startHeight,
+    bool relay
 )
 {
     this->version = version;
@@ -593,11 +594,16 @@ VersionMessage::VersionMessage(
     this->nonce = nonce;
     this->subVersion = subVersion;
     this->startHeight = startHeight;
+    this->relay = relay;
 }
 
 uint64_t VersionMessage::getSize() const
 {
-    return this->subVersion.getSize() + 84;
+    uint64_t size = this->subVersion.getSize() + MIN_VERSION_MESSAGE_SIZE;
+    if (this->version < 70001) {
+        size--;
+    }
+    return size;
 }
 
 uchar_vector VersionMessage::getSerialized() const
@@ -610,6 +616,7 @@ uchar_vector VersionMessage::getSerialized() const
     rval += uint_to_vch(this->nonce, _BIG_ENDIAN);
     rval += this->subVersion.getSerialized();
     rval += uint_to_vch(this->startHeight, _BIG_ENDIAN);
+    rval.push_back(relay ? 1 : 0);
     return rval;
 }
 
@@ -635,6 +642,18 @@ void VersionMessage::setSerialized(const uchar_vector& bytes)
     if (bytes.size() < pos + 4)
         throw runtime_error("Invalid data - VersionMessage missing startHeight.");
     this->startHeight = vch_to_uint<uint32_t>(uchar_vector(bytes.begin() + pos, bytes.begin() + pos + 4), _BIG_ENDIAN);
+    if (this->version >= 70001) {
+        if (bytes.size() > MIN_VERSION_MESSAGE_SIZE) {
+            pos += 4;
+            this->relay = (bytes[pos] != 0);
+        }
+        else {
+            throw runtime_error("Invalid data - VersionMessage missing relay.");
+        }
+    }
+    else {
+        this->relay = true;
+    }
 }
 
 string VersionMessage::toString() const
