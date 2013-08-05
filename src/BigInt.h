@@ -167,7 +167,8 @@ public:
         OPENSSL_free(hex);
         return rval;
     }
-    void SetHex(const std::string& hex) { BN_hex2bn(&this->bn, hex.c_str()); }
+    void setHex(const std::string& hex) { BN_hex2bn(&this->bn, hex.c_str()); }
+    void SetHex(const std::string& hex) { setHex(hex); }
 
     std::string getDec() const
     {
