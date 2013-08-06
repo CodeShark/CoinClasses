@@ -14,9 +14,9 @@ LIBS = \
 	-l pthread \
 	-l ssl \
 	-l crypto \
+	-l boost_system \
 	-l boost_regex \
-	-l boost_thread \
-        -l rt
+	-l boost_thread
 
 OBJS = \
     obj/IPv6.o \

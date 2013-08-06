@@ -28,50 +28,23 @@
 #include <CoinNodeSocket.h>
 #include <numericdata.h>
 
-#include <sys/socket.h>
-#include <sys/types.h>
-#include <netdb.h>
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
 #include <unistd.h>
-#include <errno.h>
-#include <pthread.h>
-#include <time.h>
 
 #include <sstream>
 #include <stdexcept>
 
 #include <boost/thread/locks.hpp>
 
-#define SOCKET_BUFFER_SIZE 16384
+#define SOCKET_BUFFER_SIZE 1024
 #define MESSAGE_HEADER_SIZE 20
 #define COMMAND_SIZE 12
 
 using namespace Coin;
 using namespace std;
 
-// MessageHandlerParams and messageHandlerThread are enabling multithreaded callbacks.
-// With multithreaded callbacks enabled, messageLoop() will not wait for the messageHandler to return
-// before reading more from the socket. It is then up to the callback implementor to ensure the callback
-// is thread-safe.
-
-struct MessageHandlerParams
-{
-    CoinNodeSocket* pNodeSocket;
-    CoinNodeMessage nodeMessage;
-    
-    MessageHandlerParams(CoinNodeSocket* _pNodeSocket, const CoinNodeMessage& _nodeMessage)
-        : pNodeSocket(_pNodeSocket), nodeMessage(_nodeMessage) { }
-};
-
-void messageHandlerThread(void* pParams)
-{
-    MessageHandlerParams* pHandlerParams = (MessageHandlerParams*)pParams;
-    CoinMessageHandler messageHandler = pHandlerParams->pNodeSocket->getMessageHandler();
-    messageHandler(pHandlerParams->pNodeSocket, pHandlerParams->nodeMessage);
-    delete pHandlerParams;
-}
 
 class recv_exception : public runtime_error
 {
@@ -79,55 +52,52 @@ private:
     int code;
     
 public:
-    recv_exception(int _code, const char* description) : runtime_error(description), code(_code) { }
+    recv_exception(const std::string& description, int _code) : runtime_error(description), code(_code) { }
     int getCode() const { return code; }
 };
 
-int _recv(int s, void* buf, size_t len, int flags)
+int _recv(boost::asio::ip::tcp::socket* pSocket, unsigned char* buf, size_t len, int flags)
 {
-    int bytesRecv = recv(s, buf, len, flags);
-    if (bytesRecv == 0)
-        throw recv_exception(0, "Connection closed by peer.");
-    if (bytesRecv == -1)
-        throw recv_exception(errno, "Socket error");
+    boost::system::error_code ec;
+    int bytesRecv = boost::asio::read(*pSocket, boost::asio::buffer(buf, len), boost::asio::transfer_at_least(24), ec);
+    if (ec) {
+        throw recv_exception(ec.message(), ec.value());
+    }
     return bytesRecv;
 }
 
-void messageLoop(void* param)
+void CoinNodeSocket::messageLoop()
 {
     try {
 #ifdef __DEBUG_OUT__
         fprintf(stdout, "Starting message loop.\n\n");
 #endif
-        CoinNodeSocket* pNodeSocket = (CoinNodeSocket*) param;
+        CoinNodeSocket* pNodeSocket = this;
         uchar_vector message;
-        uchar_vector magicBytes = pNodeSocket->getMagicBytes();
+        uchar_vector magicBytes = uint_to_vch(magic, _BIG_ENDIAN);
 #ifdef __DEBUG_OUT__
         fprintf(stdout, "Magic Bytes: %s\n", magicBytes.getHex().c_str());
 #endif
-        int h_socket = pNodeSocket->getSocketHandle();
-        CoinMessageHandler messageHandler = pNodeSocket->getMessageHandler();
-        SocketClosedHandler socketClosedHandler = pNodeSocket->getSocketClosedHandler();
         unsigned char command[12];
         uchar_vector payload;
-        uint payloadLength;
+        uint payloadLength = 0;
         uchar_vector checksum;
         uint checksumLength = 0;
         unsigned char receivedData[SOCKET_BUFFER_SIZE];
-        uint bytesBuffered;
-        while (true) {
+        uint bytesBuffered = 0;
+        while (!bDisconnect) {
             try {  
                 // Find magic bytes. all magic bytes must exist in a single frame to be recognized.
                 uchar_vector::iterator it;
                 while ((it = search(message.begin(), message.end(), magicBytes.begin(), magicBytes.end())) == message.end()) {
-                    bytesBuffered = _recv(h_socket, receivedData, SOCKET_BUFFER_SIZE, 0);
+                    bytesBuffered = _recv(pSocket, receivedData, SOCKET_BUFFER_SIZE, 0);
                     message = uchar_vector(receivedData, bytesBuffered);
                 }
                 message.assign(it, message.end()); // remove everything before magic bytes
 
                 // get rest of header
                 while (message.size() < MIN_MESSAGE_HEADER_SIZE) {
-                    bytesBuffered = _recv(h_socket, receivedData, SOCKET_BUFFER_SIZE, 0);
+                    bytesBuffered = _recv(pSocket, receivedData, SOCKET_BUFFER_SIZE, 0);
                     message += uchar_vector(receivedData, bytesBuffered);
                 }
                 // get command
@@ -144,7 +114,7 @@ void messageLoop(void* param)
 
                 // get checksum and payload
                 while (message.size() < MIN_MESSAGE_HEADER_SIZE + checksumLength + payloadLength) {
-                    bytesBuffered = _recv(h_socket, receivedData, SOCKET_BUFFER_SIZE, 0);
+                    bytesBuffered = _recv(pSocket, receivedData, SOCKET_BUFFER_SIZE, 0);
                     message += uchar_vector(receivedData, bytesBuffered);
                 }
 
@@ -158,33 +128,18 @@ void messageLoop(void* param)
                 if (nodeMessage.isChecksumValid()) {
                     // if it's a verack, signal the completion of the handshake
                     if (string((char*)command) == "verack") {
-                        if (!pNodeSocket->m_bFinishedHandshake) {
-                            std::cout << "Received verack - acquiring lock." << std::endl;
-                            boost::unique_lock<boost::mutex> lock(pNodeSocket->m_handshakeMutex);
-                            std::cout << "Verack acquired lock." << std::endl;
-                            pNodeSocket->m_bFinishedHandshake = true;
+                        if (!bHandshakeComplete) {
+                            boost::unique_lock<boost::mutex> lock(handshakeMutex);
+                            bHandshakeComplete = true;
                             lock.unlock();
-                            pNodeSocket->m_handshakeCond.notify_all();
+                            handshakeCond.notify_all();
                         } 
                         //pthread_cond_signal(&pNodeSocket->m_handshakeComplete);
                     }
 
                     // send the message to callback function.
-                    if (messageHandler) {
-                        if (pNodeSocket->isMultithreaded()) {
-                            // messageHandlerThread deallocates the pParams structure.
-                            MessageHandlerParams* pParams = new MessageHandlerParams(pNodeSocket, nodeMessage);
-#ifdef __DEBUG_OUT__
-                            int nErr = pthread_create(&pNodeSocket->h_lastCallbackThread, NULL, (void*(*)(void*))messageHandlerThread, pParams);
-                            if (nErr != 0)
-                                fprintf(stdout, "CoinNodeSocket::open() - pthread_create returned error code %d.\n", nErr);
-#else
-                            pthread_create(&pNodeSocket->h_lastCallbackThread, NULL, (void*(*)(void*))messageHandlerThread, pParams);
-#endif
-                        }
-                        else {
-                            messageHandler(pNodeSocket, nodeMessage);
-                        }
+                    if (coinMessageHandler) {
+                        coinMessageHandler(this, pListener, nodeMessage);
                     }
                 }
                 else
@@ -198,8 +153,8 @@ void messageLoop(void* param)
 #ifdef __SHOW_EXCEPTIONS__
                 fprintf(stdout, "recv_exception: %s\n", e.what());
 #endif
-                pNodeSocket->close();
-                if (socketClosedHandler) socketClosedHandler(pNodeSocket, e.getCode());
+                close();
+                if (socketClosedHandler) socketClosedHandler(pNodeSocket, pListener, e.getCode());
                 return;
             }
             catch (const exception& e) {
@@ -217,81 +172,41 @@ void messageLoop(void* param)
     }
 }
 
-CoinNodeSocket::CoinNodeSocket()
+void CoinNodeSocket::open(CoinMessageHandler callback, uint32_t magic, uint version, const char* hostname, uint port, SocketClosedHandler socketClosedHandler)
 {
-    this->h_socket = -1;
-    this->h_messageThread = 0;
-    pthread_mutex_init(&this->m_sendLock, NULL);
-    pthread_mutex_init(&this->m_handshakeLock, NULL);
-    pthread_mutex_init(&this->m_updateAppDataLock, NULL);
-    pthread_cond_init(&this->m_handshakeComplete, NULL);
-    this->m_multithreaded = false;
-    this->h_lastCallbackThread = 0;
-
-    m_bFinishedHandshake = false;
-}
-
-void CoinNodeSocket::open(CoinMessageHandler callback, uint32_t magic, uint version, const char* hostname, uint port,
-                          SocketClosedHandler socketClosedHandler)
-{
-    boost::unique_lock<boost::mutex> lock(open_close_mutex);
-
-    if (this->h_socket != -1) throw runtime_error("Connection already open.");
-
-    this->p_host = gethostbyname(hostname);
-    if ((this->h_socket = socket(AF_INET, SOCK_STREAM, 0)) == -1)
-        throw runtime_error("Error creating socket.");
-
-    serverAddress.sin_family = AF_INET;
-    serverAddress.sin_port = htons(port);
-    serverAddress.sin_addr = *((struct in_addr*)this->p_host->h_addr);
-    bzero(&(serverAddress.sin_zero), 8);
-
-    if (connect(h_socket, (struct sockaddr*)&serverAddress, sizeof(struct sockaddr)) == -1) {
-        this->h_socket = -1;
-        throw runtime_error("Error connecting to socket.");
-    }
+    boost::unique_lock<boost::mutex> lock(connectionMutex);
+    if (pSocket) throw runtime_error("Connection already open.");
 
     this->coinMessageHandler = callback;
-    this->m_magic = magic;
-    this->m_magicBytes = uint_to_vch(magic, _BIG_ENDIAN);
-    this->m_version = version;
-    this->m_hostname = hostname;
-    this->m_port = port;
+    this->magic = magic;
+    this->version = version;
+    this->host = host;
+    this->port = port;
     this->socketClosedHandler = socketClosedHandler;
-    
-    this->h_messageThread = 0;
-    int ret = pthread_create(&this->h_messageThread, NULL, (void*(*)(void*))messageLoop, this);
-    if (ret != 0) {
-        stringstream ss;
-        ss << "CoinNodeSocket::open() - pthread_create returned error code " << ret << ".";
-        this->h_socket = -1;
-        throw runtime_error(ss.str().c_str());
-    }
+ 
+    std::stringstream ss;
+    ss << port;
+    tcp::resolver resolver(io_service);
+    tcp::resolver::query query(host, ss.str());
 
-#ifdef __DEBUG_OUT__
-    fprintf(stdout, "opened with magic bytes: %s\n", this->m_magicBytes.getHex().c_str());
-#endif
-    /*this->h_messageThread = *///CreateThread(messageLoop, &params);
-    /*if (!this->h_messageThread)
-        throw runtime_error("Error creating message thread.");*/
+    pSocket = new tcp::socket(io_service);
+    boost::asio::connect(*pSocket, resolver.resolve(query));
+    bDisconnect = false;
+    bHandshakeComplete = false;
+
+    messageLoopThread = boost::thread(&CoinNodeSocket::messageLoop, this);
 }
 
 void CoinNodeSocket::close()
 {
-    boost::unique_lock<boost::mutex> lock(open_close_mutex);
+    boost::unique_lock<boost::mutex> lock(connectionMutex);
 
-    if (h_messageThread) {
-        pthread_cancel(h_messageThread);
-        h_messageThread = 0;
-    }
+    if (!pSocket) return;
 
-    if (h_socket != -1) {
-        ::close(h_socket);
-        h_socket = -1;
-    }
-
-    m_bFinishedHandshake = false;
+    bDisconnect = true;
+    messageLoopThread.join();
+    delete pSocket;
+    pSocket = NULL;
 }
 
 void CoinNodeSocket::doHandshake(
@@ -305,46 +220,38 @@ void CoinNodeSocket::doHandshake(
     int32_t startHeight
 )
 {
+    boost::unique_lock<boost::mutex> lock(handshakeMutex);
+    if (bHandshakeComplete) return;
+
     VersionMessage versionMessage(version, services, timestamp, recipientAddress, senderAddress, nonce, subVersion, startHeight);
-    CoinNodeMessage messagePacket(this->m_magic, &versionMessage);
+    CoinNodeMessage messagePacket(magic, &versionMessage);
     this->sendMessage(messagePacket);
 }
 
 void CoinNodeSocket::waitOnHandshakeComplete()
 {
-    std::cout << "CoinNodeSocket::waitOnHandshakeComplete() - Acquiring lock." << std::endl;
     boost::system_time const timeout = boost::get_system_time() + boost::posix_time::milliseconds(5000);
-    boost::unique_lock<boost::mutex> lock(m_handshakeMutex);
-    std::cout << "Acquired lock." << std::endl;
-    while (!m_bFinishedHandshake) {
-        if (!m_handshakeCond.timed_wait(lock, timeout)) {
+    boost::unique_lock<boost::mutex> lock(handshakeMutex);
+    while (!bHandshakeComplete) {
+        if (!handshakeCond.timed_wait(lock, timeout)) {
             throw runtime_error("Handshake timed out.");
         }
     }
-/*
-    pthread_mutex_lock(&this->m_handshakeLock);
-    struct timespec ts;
-    clock_gettime(CLOCK_REALTIME, &ts);
-    ts.tv_sec += 5;
-    int rval = pthread_cond_timedwait(&this->m_handshakeComplete, &this->m_handshakeLock, &ts);
-    if (rval != 0) close();
-    pthread_mutex_unlock(&this->m_handshakeLock);
-    if (rval != 0) throw runtime_error("Handshake timed out.");*/
 }
 
 void CoinNodeSocket::sendMessage(const CoinNodeMessage& message)
 {
-    if (this->h_socket == -1) throw runtime_error("Socket is not open.");
-
-    vector<unsigned char> rawData = message.getSerialized();
+    boost::lock_guard<boost::mutex> lock(connectionMutex);
+    if (!pSocket) throw runtime_error("Socket is not open.");
+ 
+    std::vector<unsigned char> rawData = message.getSerialized();
 
 #ifdef __DEBUG_OUT__
     fprintf(stdout, "Sending message: %s\n", message.toString().c_str());
     fprintf(stdout, "Raw data:\n%s\n", uchar_vector(rawData).getHex().c_str());
 #endif
 
-//    pthread_mutex_lock(&m_sendLock);
-    boost::lock_guard<boost::mutex> lock(m_sendMutex);
-    send(this->h_socket, (unsigned char*)&rawData[0], rawData.size(), 0);
-//    pthread_mutex_unlock(&m_sendLock);
+    std::vector<uint8_t> buffer = rawData;
+    boost::asio::write(*pSocket, boost::asio::buffer(rawData));
 }
+

@@ -63,7 +63,7 @@ public:
     {
         m_listenerAddress.set(NODE_NETWORK, listenerIpAddress, port);
         m_peerAddress.set(NODE_NETWORK, peerIpAddress, port);
-        m_nodeSocket.pListener = this;
+        m_nodeSocket.setListener(this);
         if (m_syncMessages)
             pthread_mutex_init(&this->m_handlerLock, NULL);
     }

@@ -10,75 +10,58 @@
 
 #include "CoinNodeData.h"
 
-#include <netinet/in.h>
-#include <pthread.h>
 #include <string>
 #include <iostream>
 
 #include <boost/thread.hpp>
-
-typedef struct hostent SHostent;
-typedef struct sockaddr_in SockaddrIn;
+#include <boost/asio.hpp>
 
 namespace Coin {
 
 class CoinNodeSocket;
 class CoinNodeAbstractListener;
 
-typedef void (*CoinMessageHandler)(CoinNodeSocket* pNodeSocket, const Coin::CoinNodeMessage& message);
-typedef void (*SocketClosedHandler)(CoinNodeSocket* pNodeSocket, int code);
+typedef void (*CoinMessageHandler)(CoinNodeSocket*, CoinNodeAbstractListener*, const Coin::CoinNodeMessage&);
+typedef void (*SocketClosedHandler)(CoinNodeSocket*, CoinNodeAbstractListener*, int);
 
 class CoinNodeSocket
 {
 private:
-    int h_socket;
-    SHostent* p_host;
-    SockaddrIn serverAddress;
-    uint32_t m_magic;
-    uchar_vector m_magicBytes;
-    uint32_t m_version;
-    std::string m_hostname;
-    uint m_port;
+    // ASIO stuff
+    typedef boost::asio::ip::tcp tcp;
+    boost::asio::io_service io_service;
+    tcp::socket* pSocket;
 
+    // Host and network information
+    std::string host;
+    uint port;
+    uint32_t magic;
+    uint32_t version;
+
+    // Synchronization objects
+    boost::mutex connectionMutex;
+    boost::mutex handshakeMutex;
+    boost::condition_variable handshakeCond;
+    bool bHandshakeComplete;
+    bool bDisconnect;
+
+    // Read loop
+    boost::thread messageLoopThread;
+    void messageLoop();
+
+    // Handlers
     CoinMessageHandler coinMessageHandler;
-    pthread_t h_messageThread;
-    pthread_mutex_t m_sendLock;
-
-    boost::mutex m_sendMutex;
-
     SocketClosedHandler socketClosedHandler;
-    
-    bool m_multithreaded;
 
-public:
-    void* pAppData;
+    // Listener for callbacks
     CoinNodeAbstractListener* pListener;
 
-    pthread_mutex_t m_handshakeLock;
-    pthread_cond_t m_handshakeComplete;
-    pthread_mutex_t m_updateAppDataLock;
+public:
+    CoinNodeSocket() : pSocket(NULL) { }
+    ~CoinNodeSocket() { this->close(); }
 
-    boost::mutex m_handshakeMutex;
-    boost::condition_variable m_handshakeCond;
-    bool m_bFinishedHandshake;
-
-    boost::mutex open_close_mutex;
-
-    pthread_t h_lastCallbackThread;
-
-    CoinNodeSocket();
-    ~CoinNodeSocket() { this->close(); } // TODO: wait on messageHandler threads.
-
-    void setMultithreaded(bool m_multithreaded) { this->m_multithreaded = m_multithreaded; }
-    bool isMultithreaded() const { return this->m_multithreaded; }
-
-    int getSocketHandle() const { return h_socket; }
-    uchar_vector getMagicBytes() const { return m_magicBytes; }
-    uint32_t getMagic() const { return m_magic; }
-    uint getVersion() const { return m_version; }
-    std::string getHostname() const { return m_hostname; }
-    uint getPort() const { return m_port; }
-    CoinMessageHandler getMessageHandler() const { return coinMessageHandler; }
+    void setListener(CoinNodeAbstractListener* _pListener) { pListener = _pListener; }
+    uint32_t getMagic() const { return magic; }
     SocketClosedHandler getSocketClosedHandler() const { return socketClosedHandler; }
 
     void open(CoinMessageHandler callback, uint32_t magic, uint32_t version, const char* hostname = "127.0.0.1", uint port = 8333,
