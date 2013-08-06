@@ -112,7 +112,7 @@ void messageLoop(void* param)
         uchar_vector payload;
         uint payloadLength;
         uchar_vector checksum;
-        uint checksumLength;
+        uint checksumLength = 0;
         unsigned char receivedData[SOCKET_BUFFER_SIZE];
         uint bytesBuffered;
         while (true) {
@@ -157,8 +157,17 @@ void messageLoop(void* param)
 
                 if (nodeMessage.isChecksumValid()) {
                     // if it's a verack, signal the completion of the handshake
-                    if (string((char*)command) == "verack")
-                        pthread_cond_signal(&pNodeSocket->m_handshakeComplete);
+                    if (string((char*)command) == "verack") {
+                        if (!pNodeSocket->m_bFinishedHandshake) {
+                            std::cout << "Received verack - acquiring lock." << std::endl;
+                            boost::unique_lock<boost::mutex> lock(pNodeSocket->m_handshakeMutex);
+                            std::cout << "Verack acquired lock." << std::endl;
+                            pNodeSocket->m_bFinishedHandshake = true;
+                            lock.unlock();
+                            pNodeSocket->m_handshakeCond.notify_all();
+                        } 
+                        //pthread_cond_signal(&pNodeSocket->m_handshakeComplete);
+                    }
 
                     // send the message to callback function.
                     if (messageHandler) {
@@ -189,6 +198,7 @@ void messageLoop(void* param)
 #ifdef __SHOW_EXCEPTIONS__
                 fprintf(stdout, "recv_exception: %s\n", e.what());
 #endif
+                pNodeSocket->close();
                 if (socketClosedHandler) socketClosedHandler(pNodeSocket, e.getCode());
                 return;
             }
@@ -217,6 +227,8 @@ CoinNodeSocket::CoinNodeSocket()
     pthread_cond_init(&this->m_handshakeComplete, NULL);
     this->m_multithreaded = false;
     this->h_lastCallbackThread = 0;
+
+    m_bFinishedHandshake = false;
 }
 
 void CoinNodeSocket::open(CoinMessageHandler callback, uint32_t magic, uint version, const char* hostname, uint port,
@@ -278,6 +290,8 @@ void CoinNodeSocket::close()
         ::close(h_socket);
         h_socket = -1;
     }
+
+    m_bFinishedHandshake = false;
 }
 
 void CoinNodeSocket::doHandshake(
@@ -298,6 +312,16 @@ void CoinNodeSocket::doHandshake(
 
 void CoinNodeSocket::waitOnHandshakeComplete()
 {
+    std::cout << "CoinNodeSocket::waitOnHandshakeComplete() - Acquiring lock." << std::endl;
+    boost::system_time const timeout = boost::get_system_time() + boost::posix_time::milliseconds(5000);
+    boost::unique_lock<boost::mutex> lock(m_handshakeMutex);
+    std::cout << "Acquired lock." << std::endl;
+    while (!m_bFinishedHandshake) {
+        if (!m_handshakeCond.timed_wait(lock, timeout)) {
+            throw runtime_error("Handshake timed out.");
+        }
+    }
+/*
     pthread_mutex_lock(&this->m_handshakeLock);
     struct timespec ts;
     clock_gettime(CLOCK_REALTIME, &ts);
@@ -305,7 +329,7 @@ void CoinNodeSocket::waitOnHandshakeComplete()
     int rval = pthread_cond_timedwait(&this->m_handshakeComplete, &this->m_handshakeLock, &ts);
     if (rval != 0) close();
     pthread_mutex_unlock(&this->m_handshakeLock);
-    if (rval != 0) throw runtime_error("Handshake timed out.");
+    if (rval != 0) throw runtime_error("Handshake timed out.");*/
 }
 
 void CoinNodeSocket::sendMessage(const CoinNodeMessage& message)
@@ -319,7 +343,8 @@ void CoinNodeSocket::sendMessage(const CoinNodeMessage& message)
     fprintf(stdout, "Raw data:\n%s\n", uchar_vector(rawData).getHex().c_str());
 #endif
 
-    pthread_mutex_lock(&m_sendLock);
+//    pthread_mutex_lock(&m_sendLock);
+    boost::lock_guard<boost::mutex> lock(m_sendMutex);
     send(this->h_socket, (unsigned char*)&rawData[0], rawData.size(), 0);
-    pthread_mutex_unlock(&m_sendLock);
+//    pthread_mutex_unlock(&m_sendLock);
 }

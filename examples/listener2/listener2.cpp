@@ -38,7 +38,7 @@ namespace listener_network
 {
 #if defined(USE_BITCOIN_NETWORK)
     const uint32_t MAGIC_BYTES = 0xd9b4bef9ul;
-    const uint32_t PROTOCOL_VERSION = 60002;
+    const uint32_t PROTOCOL_VERSION = 60003;
     const uint32_t DEFAULT_PORT = 8333;
     const uint8_t  ADDRESS_VERSION = 0x00;
     const uint8_t  MULTISIG_ADDRESS_VERSION = 0x05;
@@ -134,12 +134,14 @@ int main(int argc, char* argv[])
         listener.start();
         cout << "started." << endl << endl;
         //listener.askForPeers();
-        //listener.askForBlock("00000000000000659abaa8a2fd7959af0615bc1a9f1b3e4069b2b52e61d21923");
+        listener.askForBlock("00000000000000659abaa8a2fd7959af0615bc1a9f1b3e4069b2b52e61d21923");
+/*
         vector<uchar_vector> locatorHashes;
         locatorHashes.push_back(uchar_vector("0000000000000014ec7f764280f05a0c1c297de0446f72ea68a493376588316f"));
         locatorHashes.push_back(uchar_vector("00000000000000680fc2144d0572119e48d8683b7fc70f673c5d819f54bbc536"));
         locatorHashes.push_back(uchar_vector("0000000000000087da12fd962dbd6e265b9028a85add866c3ab88e0b7c74e804"));
         listener.getHeaders(locatorHashes);
+*/
     }
     catch (const exception& e)
     {

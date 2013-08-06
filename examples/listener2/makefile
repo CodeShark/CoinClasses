@@ -15,6 +15,7 @@ LIBS = \
 	-l ssl \
 	-l crypto \
 	-l boost_regex \
+	-l boost_thread \
         -l rt
 
 OBJS = \

@@ -616,7 +616,9 @@ uchar_vector VersionMessage::getSerialized() const
     rval += uint_to_vch(this->nonce, _BIG_ENDIAN);
     rval += this->subVersion.getSerialized();
     rval += uint_to_vch(this->startHeight, _BIG_ENDIAN);
-    rval.push_back(relay ? 1 : 0);
+    if (this->version >= 70001) {
+        rval.push_back(relay ? 1 : 0);
+    }
     return rval;
 }
 
