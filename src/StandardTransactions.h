@@ -705,6 +705,7 @@ public:
     std::vector<InputSigRequest>& getMissingSigs() const;
     std::string getMissingSigsJson() const;
 
+    void sign(uint index, const uchar_vector& pubKey, const uchar_vector& privKey, SigHashType sigHashType = SIGHASH_ALL);
     void sign(uint index, const uchar_vector& pubKey, const std::string& privKey, SigHashType sigHashType = SIGHASH_ALL);
 };
 
@@ -1005,6 +1006,37 @@ std::string TransactionBuilder::getMissingSigsJson() const
     }
     ss << "\n]";
     return ss.str();
+}
+
+void TransactionBuilder::sign(uint index, const uchar_vector& pubKey, const uchar_vector& privKey, SigHashType sigHashType)
+{
+    if (index > inputs.size() - 1) {
+        throw std::runtime_error("Invalid input index.");
+    }
+
+    Transaction tx = getTx(SCRIPT_SIG_SIGN, index);
+    uchar_vector hashToSign = tx.getHashWithAppendedCode(sigHashType);
+    std::cout << "~~hashToSign: " << hashToSign.getHex() << std::endl;
+
+    CoinKey key;
+    if (!key.setPublicKey(pubKey)) {
+        throw std::runtime_error("Invalid public key.");
+    }
+
+    if (!key.setPrivateKey(privKey)) {
+        throw std::runtime_error("Invalid private key.");
+    }
+
+    if (key.getPublicKey() != pubKey) {
+        throw std::runtime_error("Private key does not correspond to public key.");
+    }
+
+    uchar_vector sig;
+    if (!key.sign(hashToSign, sig)) {
+        throw std::runtime_error("Signing failed.");
+    }
+
+    inputs[index]->addSig(pubKey, sig, sigHashType);
 }
 
 void TransactionBuilder::sign(uint index, const uchar_vector& pubKey, const std::string& privKey, SigHashType sigHashType)
