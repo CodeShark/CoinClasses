@@ -32,9 +32,8 @@
 #include <cstring>
 #include <stdexcept>
 
-//#define __NO_OPENSSL_FREE
 
-#ifdef __NO_OPENSSL_FREE
+#ifdef __APPLE__
 #define OPENSSL_free free
 #endif
 
