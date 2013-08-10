@@ -183,7 +183,7 @@ void CoinNodeSocket::open(CoinMessageHandler callback, uint32_t magic, uint vers
     this->host = host;
     this->port = port;
     this->socketClosedHandler = socketClosedHandler;
- 
+
     std::stringstream ss;
     ss << port;
     tcp::resolver resolver(io_service);
@@ -193,10 +193,15 @@ void CoinNodeSocket::open(CoinMessageHandler callback, uint32_t magic, uint vers
         pSocket = new tcp::socket(io_service);
         boost::asio::connect(*pSocket, resolver.resolve(query));
     }
+    catch (const boost::system::error_code& ec) {
+        if (pSocket) delete pSocket;
+        pSocket = NULL;
+        throw std::runtime_error(ec.message());
+    }
     catch (const std::exception& e) {
         if (pSocket) delete pSocket;
         pSocket = NULL;
-        throw e;
+        throw std::runtime_error(e.what());
     }
 
     bDisconnect = false;
