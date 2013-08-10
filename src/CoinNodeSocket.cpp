@@ -180,7 +180,7 @@ void CoinNodeSocket::open(CoinMessageHandler callback, uint32_t magic, uint vers
     this->coinMessageHandler = callback;
     this->magic = magic;
     this->version = version;
-    this->host = host;
+    this->host = hostname;
     this->port = port;
     this->socketClosedHandler = socketClosedHandler;
 
@@ -196,7 +196,7 @@ void CoinNodeSocket::open(CoinMessageHandler callback, uint32_t magic, uint vers
     catch (const boost::system::error_code& ec) {
         if (pSocket) delete pSocket;
         pSocket = NULL;
-        throw std::runtime_error(ec.message());
+        throw std::runtime_error(std::string("Boost error: ") + ec.message());
     }
     catch (const std::exception& e) {
         if (pSocket) delete pSocket;
