@@ -151,7 +151,7 @@ void CoinNodeSocket::messageLoop()
             catch (const recv_exception& e)
             {
 #ifdef __SHOW_EXCEPTIONS__
-                fprintf(stdout, "recv_exception: %s\n", e.what());
+                if (e.getCode() != boost::system::errc::bad_file_descriptor) fprintf(stdout, "recv_exception: %s\n", e.what());
 #endif
                 close();
                 if (socketClosedHandler) socketClosedHandler(pNodeSocket, pListener, e.getCode());
