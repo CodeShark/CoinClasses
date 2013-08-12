@@ -36,6 +36,7 @@ private:
     std::string host;
     uint port;
     uint32_t magic;
+    uchar_vector magicBytes;
     uint32_t version;
 
     // Synchronization objects
