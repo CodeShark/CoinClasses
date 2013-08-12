@@ -1550,12 +1550,17 @@ void CoinBlock::setSerialized(const uchar_vector& bytes)
     this->blockHeader.setSerialized(bytes);
     uint pos = MIN_COIN_BLOCK_HEADER_SIZE;
 
+    MerkleTree txMerkleTree;
     VarInt count(uchar_vector(bytes.begin() + pos, bytes.end())); pos += count.getSize();
     for (uint i = 0; i < count.value; i++) {
         Transaction tx(uchar_vector(bytes.begin() + pos, bytes.end())); pos += tx.getSize();
         this->txs.push_back(tx);
+        txMerkleTree.addHash(tx.getHash());
         if (bytes.size() < pos)
             throw runtime_error("Invalid data - CoinBlock transactions exceed block size.");
+    }
+    if (blockHeader.merkleRoot != txMerkleTree.getRootLittleEndian()) {
+        throw runtime_error("Invalid data - CoinBlock merkle root mismatch.");
     }
 }
 
