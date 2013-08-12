@@ -208,6 +208,7 @@ void CoinNodeSocket::waitOnHandshakeComplete()
     boost::unique_lock<boost::mutex> lock(handshakeMutex);
     while (!bHandshakeComplete) {
         if (!handshakeCond.timed_wait(lock, timeout)) {
+            close();
             throw runtime_error("Handshake timed out.");
         }
     }
