@@ -60,7 +60,12 @@ void CoinNodeSocket::messageLoop()
         try {
             int bytes_read = boost::asio::read(*pSocket, boost::asio::buffer(read_buffer, READ_BUFFER_SIZE), boost::asio::transfer_at_least(MIN_MESSAGE_HEADER_SIZE), ec);
             if (ec) {
-                close();
+                boost::unique_lock<boost::mutex> lock(connectionMutex);
+                bDisconnect = true;
+                if (pSocket) {
+                    delete pSocket;
+                    pSocket = NULL;
+                }
                 if (socketClosedHandler) socketClosedHandler(this, pListener, ec.value());
                 return;
             }
