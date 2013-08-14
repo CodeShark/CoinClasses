@@ -178,7 +178,7 @@ void CoinNodeSocket::close()
     if (!pSocket) return;
 
     bDisconnect = true;
-    messageLoopThread.interrupt();
+    //messageLoopThread.interrupt();
     delete pSocket;
     pSocket = NULL;
 }
