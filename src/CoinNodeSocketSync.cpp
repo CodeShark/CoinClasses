@@ -188,7 +188,6 @@ void CoinNodeSocket::close()
     messageLoopThread.interrupt();
     delete pSocket;
     pSocket = NULL;
-    //messageLoopThread.join();
 }
 
 void CoinNodeSocket::doHandshake(
