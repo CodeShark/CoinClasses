@@ -181,11 +181,14 @@ void CoinNodeSocket::close()
     boost::unique_lock<boost::mutex> lock(connectionMutex);
 
     if (!pSocket) return;
-
+    boost::system::error_code ec;
+    pSocket->shutdown(boost::asio::ip::tcp::socket::shutdown_both, ec);
+    pSocket->close(ec);
     bDisconnect = true;
     messageLoopThread.interrupt();
     delete pSocket;
     pSocket = NULL;
+    //messageLoopThread.join();
 }
 
 void CoinNodeSocket::doHandshake(
