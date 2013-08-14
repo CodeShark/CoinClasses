@@ -59,15 +59,17 @@ void CoinNodeSocket::messageLoop()
     while (!bDisconnect) {
         try {
             int bytes_read = boost::asio::read(*pSocket, boost::asio::buffer(read_buffer, READ_BUFFER_SIZE), boost::asio::transfer_at_least(MIN_MESSAGE_HEADER_SIZE), ec);
+            if (bDisconnect) break;
             if (ec) {
                 boost::unique_lock<boost::mutex> lock(connectionMutex);
-                bDisconnect = true;
-                if (pSocket) {
-                    delete pSocket;
-                    pSocket = NULL;
-                }
-                if (socketClosedHandler) socketClosedHandler(this, pListener, ec.value());
-                return;
+                if (!bDisconnect) {
+                    bDisconnect = true;
+                    if (pSocket) {
+                        delete pSocket;
+                        pSocket = NULL;
+                    }
+                } 
+                break;
             }
             if (bytes_read == 0) {
                 std::cout << "WARNING: CoinNodeSocket::messageLoop() - 0 bytes read." << std::endl;
@@ -135,6 +137,8 @@ void CoinNodeSocket::messageLoop()
             std::cout << "CoinNodeSocket:messageLoop() - Exception: " << e.what() << std::endl;
         }
     }
+
+    if (socketClosedHandler) socketClosedHandler(this, pListener, ec.value());
 }
 
 void CoinNodeSocket::open(CoinMessageHandler callback, uint32_t magic, uint version, const char* hostname, uint port, SocketClosedHandler socketClosedHandler)
@@ -181,13 +185,10 @@ void CoinNodeSocket::close()
     boost::unique_lock<boost::mutex> lock(connectionMutex);
 
     if (!pSocket) return;
-    boost::system::error_code ec;
-    pSocket->shutdown(boost::asio::ip::tcp::socket::shutdown_both, ec);
-    pSocket->close(ec);
     bDisconnect = true;
-    messageLoopThread.interrupt();
     delete pSocket;
     pSocket = NULL;
+    messageLoopThread.join();
 }
 
 void CoinNodeSocket::doHandshake(
