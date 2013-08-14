@@ -154,14 +154,16 @@ void CoinNodeSocket::open(CoinMessageHandler callback, uint32_t magic, uint vers
     this->port = port;
     this->socketClosedHandler = socketClosedHandler;
 
-    std::stringstream ss;
-    ss << port;
-    tcp::resolver resolver(io_service);
-    tcp::resolver::query query(host, ss.str());
-
     try {
+        std::stringstream ss;
+        ss << port;
+        tcp::resolver resolver(io_service);
+        tcp::resolver::query query(host, ss.str());
+        tcp::resolver::iterator iter = resolver.resolve(query);
+        this->endpoint = *iter;
+
         pSocket = new tcp::socket(io_service);
-        boost::asio::connect(*pSocket, resolver.resolve(query));
+        boost::asio::connect(*pSocket, iter);
     }
     catch (const boost::system::error_code& ec) {
         if (pSocket) delete pSocket;

@@ -31,6 +31,7 @@ private:
     typedef boost::asio::ip::tcp tcp;
     boost::asio::io_service io_service;
     tcp::socket* pSocket;
+    tcp::endpoint endpoint;
 
     // Host and network information
     std::string host;
@@ -84,6 +85,8 @@ public:
 
     void sendMessage(unsigned char* command, const std::vector<unsigned char>& payload);
     void sendMessage(const Coin::CoinNodeMessage& pMessage);
+
+    const tcp::endpoint& getEndpoint() const { return endpoint; }
 };
 
 }; // namespace Coin

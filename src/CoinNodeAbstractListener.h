@@ -75,6 +75,7 @@ public:
 
     uint32_t getMagic() const { return m_magic; }
     uint32_t getVersion() const { return m_version; }
+    const boost::asio::ip::tcp::endpoint& getEndpoint() const { return m_nodeSocket.getEndpoint(); }
 
     virtual void start();
     virtual void stop() { m_nodeSocket.close(); }
