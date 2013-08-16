@@ -600,8 +600,8 @@ VersionMessage::VersionMessage(
 uint64_t VersionMessage::getSize() const
 {
     uint64_t size = this->subVersion.getSize() + MIN_VERSION_MESSAGE_SIZE;
-    if (this->version < 70001) {
-        size--;
+    if (this->version >= 70001) {
+        size++;
     }
     return size;
 }
@@ -628,6 +628,9 @@ void VersionMessage::setSerialized(const uchar_vector& bytes)
         throw runtime_error("Invalid data - VersionMessage too small.");
 
     this->version = vch_to_uint<uint32_t>(bytes, _BIG_ENDIAN);
+    if (this->version >= 70001 && bytes.size() < MIN_VERSION_MESSAGE_SIZE + 1)
+        throw runtime_error("Invalid data - VersionMessage is too small for version >= 70001.");
+
     uint pos = 4;
     this->services = vch_to_uint<uint64_t>(uchar_vector(bytes.begin() + pos, bytes.begin() + pos + 8), _BIG_ENDIAN);
     pos += 8;
@@ -645,13 +648,8 @@ void VersionMessage::setSerialized(const uchar_vector& bytes)
         throw runtime_error("Invalid data - VersionMessage missing startHeight.");
     this->startHeight = vch_to_uint<uint32_t>(uchar_vector(bytes.begin() + pos, bytes.begin() + pos + 4), _BIG_ENDIAN);
     if (this->version >= 70001) {
-        if (bytes.size() > MIN_VERSION_MESSAGE_SIZE) {
-            pos += 4;
-            this->relay = (bytes[pos] != 0);
-        }
-        else {
-            throw runtime_error("Invalid data - VersionMessage missing relay.");
-        }
+        pos += 4;
+        this->relay = (bytes[pos] != 0);
     }
     else {
         this->relay = true;
@@ -665,6 +663,9 @@ string VersionMessage::toString() const
        << ", recipientAddress: {" << this->recipientAddress.toString()
        << "}, senderAddress: {" << this->senderAddress.toString()
        << "}, nonce: " << nonce << ", subVersion: \"" << this->subVersion.toString() << "\", startHeight: " << this->startHeight;
+    if (this->version >= 70001) {
+        ss << ", relay: " << (this->relay ? 1 : 0);
+    }
     return ss.str();
 }
 
@@ -679,6 +680,9 @@ string VersionMessage::toIndentedString(uint spaces) const
        << blankSpaces(spaces) << "nonce: " << nonce << endl
        << blankSpaces(spaces) << "subVersion: \"" << this->subVersion.toString() << "\"" << endl
        << blankSpaces(spaces) << "startHeight: " << this->startHeight;
+    if (this->version >= 70001) {
+        ss << endl << blankSpaces(spaces) << "relay: " << (this->relay ? 1 : 0);
+    }
     return ss.str();
 }
 

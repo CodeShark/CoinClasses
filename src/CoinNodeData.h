@@ -50,8 +50,8 @@ void SetMultiSigAddressVersion(unsigned char version);
 #define MIN_VAR_INT_SIZE              1
 #define MIN_VAR_STR_SIZE              1
 #define MIN_NETWORK_ADDRESS_SIZE     26
-#define MIN_MESSAGE_HEADER_SIZE      20
-#define MIN_VERSION_MESSAGE_SIZE     85
+#define MIN_MESSAGE_HEADER_SIZE      24
+#define MIN_VERSION_MESSAGE_SIZE     84
 #define MIN_ADDR_MESSAGE_SIZE        31
 #define MIN_INVENTORY_ITEM_SIZE      36
 #define MIN_GET_BLOCKS_SIZE          69
@@ -196,7 +196,7 @@ public:
     uint32_t checksum;
     bool hasChecksum;
 
-    MessageHeader() { }
+    MessageHeader() : hasChecksum(true) { }
     MessageHeader(uint32_t magic, const char* command, uint32_t length); // no checksum
     MessageHeader(uint32_t magic, const char* command, uint32_t length, uint32_t checksum);
     MessageHeader(const MessageHeader&);
