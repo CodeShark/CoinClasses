@@ -740,6 +740,24 @@ public:
     std::string toIndentedString(uint spaces = 0) const;
 };
 
+class FilterAddMessage : public CoinNodeStructure
+{
+public:
+    uchar_vector data;
+
+    FilterAddMessage() { }
+    FilterAddMessage(const uchar_vector& bytes) { setSerialized(bytes); }
+
+    const char* getCommand() const { return "filteradd"; }
+    uint64_t getSize() const { return VarInt(data.size()).getSize() + data.size(); }
+
+    uchar_vector getSerialized() const { return VarInt(data.size()).getSerialized() + data; }
+    void setSerialized(const uchar_vector& bytes);
+
+    std::string toString() const;
+    std::string toIndentedString(uint spaces = 0) const;
+};
+
 } // namespace Coin
 
 #endif

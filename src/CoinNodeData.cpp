@@ -447,6 +447,11 @@ void CoinNodeMessage::setMessage(uint32_t magic, CoinNodeStructure* pPayload)
         FilterLoadMessage* pMessage = static_cast<FilterLoadMessage*>(pPayload);
         this->pPayload = new FilterLoadMessage(*pMessage);
     }
+    else if (command == "filteradd") {
+        this->header = MessageHeader(magic, command.c_str(), pPayload->getSize(), pPayload->getChecksum());
+        FilterAddMessage* pMessage = static_cast<FilterAddMessage*>(pPayload);
+        this->pPayload = new FilterAddMessage(*pMessage);
+    }
     else {
         string error_msg = "Unrecognized command: ";
         error_msg += command;
@@ -537,6 +542,10 @@ void CoinNodeMessage::setSerialized(const uchar_vector& bytes)
     else if (command == "filterload") {
         this->pPayload =
             new FilterLoadMessage(uchar_vector(bytes.begin() + header.getSize(), bytes.begin() + header.getSize() + header.length));
+    }
+    else if (command == "filteradd") {
+        this->pPayload =
+            new FilterAddMessage(uchar_vector(bytes.begin() + header.getSize(), bytes.begin() + header.getSize() + header.length));
     }
     else {
         string error_msg = "Unrecognized command: ";
@@ -1755,4 +1764,34 @@ std::string FilterLoadMessage::toString() const
 std::string FilterLoadMessage::toIndentedString(uint spaces) const
 {
     return "";
-} 
+}
+
+///////////////////////////////////////////////////////////////////////////////
+//
+// class FilterAddMessage implementation
+//
+void FilterAddMessage::setSerialized(const uchar_vector& bytes)
+{
+    if (bytes.empty()) {
+        throw std::runtime_error("Invalid data - cannot be empty.");
+    }
+
+    VarInt dataSize(bytes);
+    uint pos = dataSize.getSize();
+    if (bytes.size() < pos + dataSize.value) {
+        throw std::runtime_error("Invalid data - too short.");
+    }
+
+    data.assign(bytes.begin() + pos, bytes.begin() + pos + dataSize.value);
+}
+
+std::string FilterAddMessage::toString() const
+{
+    return "";
+}
+
+std::string FilterAddMessage::toIndentedString(uint spaces) const
+{
+    return "";
+}
+
