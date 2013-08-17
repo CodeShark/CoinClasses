@@ -813,7 +813,7 @@ void Inventory::setSerialized(const uchar_vector& bytes)
     VarInt count(bytes);
     uint pos = count.getSize();
     if (bytes.size() < pos + MIN_INVENTORY_ITEM_SIZE*count.value)
-        throw runtime_error("Invalid data - Inventory too small.");
+        throw runtime_error("Invalid data - message too small.");
 
     for (uint i = 0; i < count.value; i++) {
         uchar_vector field(bytes.begin() + pos, bytes.end());
@@ -848,6 +848,7 @@ string Inventory::toIndentedString(uint spaces) const
 //
 // class GetDataMessage implementation
 //
+/*
 uchar_vector GetDataMessage::getSerialized() const
 {
     uchar_vector data = VarInt(this->items.size()).getSerialized();
@@ -893,7 +894,7 @@ string GetDataMessage::toIndentedString(uint spaces) const
     }
     return ss.str();
 }
-
+*/
 ///////////////////////////////////////////////////////////////////////////////
 //
 // class GetBlocksMessage implementation

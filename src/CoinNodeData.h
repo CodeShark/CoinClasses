@@ -394,6 +394,29 @@ public:
     std::string toIndentedString(uint spaces = 0) const;
 };
 
+class GetDataMessage : public Inventory
+{
+public:
+    GetDataMessage() { }
+    GetDataMessage(const std::vector<InventoryItem> items) { this->items = items; }
+    GetDataMessage(const uchar_vector& bytes) { this->setSerialized(bytes); }
+    GetDataMessage(const Inventory& inv) { this->items = inv.getItems(); }
+
+    const char* getCommand() const { return "getdata"; }
+};
+
+class NotFoundMessage : public Inventory
+{
+public:
+    NotFoundMessage() { }
+    NotFoundMessage(const std::vector<InventoryItem> items) { this->items = items; }
+    NotFoundMessage(const uchar_vector& bytes) { this->setSerialized(bytes); }
+    NotFoundMessage(const Inventory& inv) { this->items = inv.getItems(); }
+
+    const char* getCommand() const { return "getdata"; }
+};
+
+/*
 class GetDataMessage : public CoinNodeStructure
 {
 public:
@@ -418,7 +441,7 @@ public:
     std::string toString() const;
     std::string toIndentedString(uint spaces = 0) const;
 };
-
+*/
 class GetBlocksMessage : public CoinNodeStructure
 {
 public:
