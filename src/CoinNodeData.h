@@ -64,6 +64,8 @@ void SetMultiSigAddressVersion(unsigned char version);
 #define MIN_COIN_BLOCK_HEADER_SIZE   80
 #define MIN_COIN_BLOCK_SIZE         140
 
+#define MIN_FILTER_LOAD_SIZE         10
+
 const char* itemTypeToString(uint itemType);
 
 std::string timeToString(time_t time);
@@ -715,6 +717,27 @@ public:
 
     std::string toString() const { return ""; }
     std::string toIndentedString(uint spaces = 0) const { return blankSpaces(spaces); }
+};
+
+class FilterLoadMessage : public CoinNodeStructure
+{
+public:
+    uchar_vector filter;
+    uint32_t nHashFuncs;
+    uint32_t nTweak;
+    uint8_t nFlags;
+
+    FilterLoadMessage() { }
+    FilterLoadMessage(const uchar_vector& bytes) { setSerialized(bytes); }
+
+    const char* getCommand() const { return "filterload"; }
+    uint64_t getSize() const;
+
+    uchar_vector getSerialized() const;
+    void setSerialized(const uchar_vector& bytes);
+
+    std::string toString() const;
+    std::string toIndentedString(uint spaces = 0) const;
 };
 
 } // namespace Coin

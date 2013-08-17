@@ -442,6 +442,11 @@ void CoinNodeMessage::setMessage(uint32_t magic, CoinNodeStructure* pPayload)
         this->header = MessageHeader(magic, command.c_str(), pPayload->getSize(), pPayload->getChecksum());
         this->pPayload = new GetAddrMessage();
     }
+    else if (command == "filterload") {
+        this->header = MessageHeader(magic, command.c_str(), pPayload->getSize(), pPayload->getChecksum());
+        FilterLoadMessage* pMessage = static_cast<FilterLoadMessage*>(pPayload);
+        this->pPayload = new FilterLoadMessage(*pMessage);
+    }
     else {
         string error_msg = "Unrecognized command: ";
         error_msg += command;
@@ -528,6 +533,10 @@ void CoinNodeMessage::setSerialized(const uchar_vector& bytes)
     }
     else if (command == "getaddr") {
         this->pPayload = new GetAddrMessage();
+    }
+    else if (command == "filterload") {
+        this->pPayload =
+            new FilterLoadMessage(uchar_vector(bytes.begin() + header.getSize(), bytes.begin() + header.getSize() + header.length));
     }
     else {
         string error_msg = "Unrecognized command: ";
@@ -1699,3 +1708,51 @@ string HeadersMessage::toIndentedString(uint spaces) const
     }
     return ss.str();
 }
+
+///////////////////////////////////////////////////////////////////////////////
+//
+// class FilterLoadMessage implementation
+//
+uint64_t FilterLoadMessage::getSize() const
+{
+    return VarInt(filter.size()).getSize() + filter.size() + 9; 
+}
+
+uchar_vector FilterLoadMessage::getSerialized() const
+{
+    uchar_vector rval = VarInt(filter.size()).getSerialized();
+    rval += filter;
+    rval += uint_to_vch(nHashFuncs, _BIG_ENDIAN);
+    rval += uint_to_vch(nTweak, _BIG_ENDIAN);
+    rval.push_back(nFlags);
+    return rval;
+}
+
+void FilterLoadMessage::setSerialized(const uchar_vector& bytes)
+{
+    if (bytes.size() < MIN_FILTER_LOAD_SIZE) {
+        throw std::runtime_error("Invalid data - FilterLoadMessage too small.");
+    }
+
+    VarInt filterSize(bytes);
+    std::size_t filterSizeLength = filterSize.getSize();
+    if (bytes.size() != filterSizeLength + filterSize.value + 9) {
+        throw std::runtime_error("Invalid data - filter length incorrect.");
+    }
+
+    uint pos = filterSizeLength + filterSize.value;
+    filter.assign(bytes.begin() + filterSizeLength, bytes.begin() + pos);
+    nHashFuncs = vch_to_uint<uint32_t>(uchar_vector(bytes.begin() + pos, bytes.begin() + pos + 4), _BIG_ENDIAN); pos += 4;
+    nTweak = vch_to_uint<uint32_t>(uchar_vector(bytes.begin() + pos, bytes.begin() + pos + 4), _BIG_ENDIAN); pos += 4;
+    nFlags = (uint8_t)bytes[pos]; 
+}
+
+std::string FilterLoadMessage::toString() const
+{
+    return "";
+}
+
+std::string FilterLoadMessage::toIndentedString(uint spaces) const
+{
+    return "";
+} 
