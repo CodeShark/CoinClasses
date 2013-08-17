@@ -413,6 +413,11 @@ void CoinNodeMessage::setMessage(uint32_t magic, CoinNodeStructure* pPayload)
         GetDataMessage* pMessage = static_cast<GetDataMessage*>(pPayload);
         this->pPayload = new GetDataMessage(*pMessage);
     }
+    else if (command == "notfound") {
+        this->header = MessageHeader(magic, command.c_str(), pPayload->getSize(), pPayload->getChecksum());
+        NotFoundMessage* pMessage = static_cast<NotFoundMessage*>(pPayload);
+        this->pPayload = new NotFoundMessage(*pMessage);
+    }
     else if (command == "getblocks") {
         this->header = MessageHeader(magic, command.c_str(), pPayload->getSize(), pPayload->getChecksum());
         GetBlocksMessage* pMessage = static_cast<GetBlocksMessage*>(pPayload);
@@ -451,6 +456,10 @@ void CoinNodeMessage::setMessage(uint32_t magic, CoinNodeStructure* pPayload)
         this->header = MessageHeader(magic, command.c_str(), pPayload->getSize(), pPayload->getChecksum());
         FilterAddMessage* pMessage = static_cast<FilterAddMessage*>(pPayload);
         this->pPayload = new FilterAddMessage(*pMessage);
+    }
+    else if (command == "filterclear") {
+        this->header = MessageHeader(magic, command.c_str(), pPayload->getSize(), pPayload->getChecksum());
+        this->pPayload = new BlankMessage("filterclear");
     }
     else {
         string error_msg = "Unrecognized command: ";
@@ -516,6 +525,10 @@ void CoinNodeMessage::setSerialized(const uchar_vector& bytes)
         this->pPayload =
             new GetDataMessage(uchar_vector(bytes.begin() + header.getSize(), bytes.begin() + header.getSize() + header.length));
     }
+    else if (command == "notfound") {
+        this->pPayload =
+            new NotFoundMessage(uchar_vector(bytes.begin() + header.getSize(), bytes.begin() + header.getSize() + header.length));
+    }
     else if (command == "getblocks") {
         this->pPayload =
             new GetBlocksMessage(uchar_vector(bytes.begin() + header.getSize(), bytes.begin() + header.getSize() + header.length));
@@ -546,6 +559,9 @@ void CoinNodeMessage::setSerialized(const uchar_vector& bytes)
     else if (command == "filteradd") {
         this->pPayload =
             new FilterAddMessage(uchar_vector(bytes.begin() + header.getSize(), bytes.begin() + header.getSize() + header.length));
+    }
+    else if (command == "filterclear") {
+        this->pPayload = new BlankMessage("filterclear");
     }
     else {
         string error_msg = "Unrecognized command: ";
