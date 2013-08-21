@@ -438,6 +438,11 @@ void CoinNodeMessage::setMessage(uint32_t magic, CoinNodeStructure* pPayload)
         CoinBlock* pMessage = static_cast<CoinBlock*>(pPayload);
         this->pPayload = new CoinBlock(*pMessage);
     }
+    else if (command == "merkleblock") {
+        this->header = MessageHeader(magic, command.c_str(), pPayload->getSize(), pPayload->getChecksum());
+        MerkleBlock* pMessage = static_cast<MerkleBlock*>(pPayload);
+        this->pPayload = new MerkleBlock(*pMessage);
+    }
     else if (command == "headers") {
         this->header = MessageHeader(magic, command.c_str(), pPayload->getSize(), pPayload->getChecksum());
         HeadersMessage* pMessage = static_cast<HeadersMessage*>(pPayload);
@@ -539,11 +544,15 @@ void CoinNodeMessage::setSerialized(const uchar_vector& bytes)
     }
     else if (command == "tx") {
         this->pPayload =
-        new Transaction(uchar_vector(bytes.begin() + header.getSize(), bytes.begin() + header.getSize() + header.length));
+            new Transaction(uchar_vector(bytes.begin() + header.getSize(), bytes.begin() + header.getSize() + header.length));
     }
     else if (command == "block") {
         this->pPayload =
-        new CoinBlock(uchar_vector(bytes.begin() + header.getSize(), bytes.begin() + header.getSize() + header.length));
+            new CoinBlock(uchar_vector(bytes.begin() + header.getSize(), bytes.begin() + header.getSize() + header.length));
+    }
+    else if (command == "merkleblock") {
+        this->pPayload =
+            new MerkleBlock(uchar_vector(bytes.begin() + header.getSize(), bytes.begin() + header.getSize() + header.length));
     }
     else if (command == "headers") {
         this->pPayload =
@@ -1724,14 +1733,29 @@ void MerkleBlock::setSerialized(const uchar_vector& bytes)
     }
 }
 
-std::string MerkleBlock::toString() const
+string MerkleBlock::toString() const
 {
-    return "";
+    stringstream ss;
+    ss << this->blockHeader.toString() << ", nTxs: " << this->nTxs << ", hashes: [";
+    for (uint i = 0; i < this->hashes.size(); i++) {
+        if (i > 0) ss << ", ";
+        ss << i << ": " << this->hashes[i].getHex();
+    }
+    ss << "], flags: " << this->flags.getHex();
+    return ss.str();
 }
 
-std::string MerkleBlock::toIndentedString(uint spaces) const
+string MerkleBlock::toIndentedString(uint spaces) const
 {
-    return "";
+    stringstream ss;
+    ss << blankSpaces(spaces) << "blockHeader:" << endl << this->blockHeader.toIndentedString(spaces + 2) << endl
+       << blankSpaces(spaces) << "nTxs: " << this->nTxs
+       << blankSpaces(spaces) << "hashes:";
+    for (uint i = 0; i < this->hashes.size(); i++) {
+        ss << endl << blankSpaces(spaces + 2) << i << ":" << this->hashes[i].getHex();
+    }
+    ss << endl << blankSpaces(spaces) << "flags: " << this->flags.getHex() << endl;
+    return ss.str();
 }
 
 bool MerkleBlock::isValidMerkleRoot() const

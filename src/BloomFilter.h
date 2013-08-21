@@ -50,6 +50,11 @@ public:
 
     void insert(const uchar_vector& data);
     bool match(const uchar_vector& data) const;
+
+    const uchar_vector& getFilter() const { return filter; }
+    uint32_t getNHashFuncs() const { return nHashFuncs; }
+    uint32_t getNTweak() const { return nTweak; }
+    uint8_t getNFlags() const { return nFlags; }
 };
 
 } // Coin
