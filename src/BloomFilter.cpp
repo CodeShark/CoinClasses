@@ -80,7 +80,7 @@ uint32_t murmurHash3(uint32_t seed, const uchar_vector& data)
 
     //----------
     // finalization
-    h1 ^= vDataToHash.size();
+    h1 ^= data.size();
     h1 ^= h1 >> 16;
     h1 *= 0x85ebca6b;
     h1 ^= h1 >> 13;

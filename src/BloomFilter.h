@@ -37,11 +37,10 @@ class BloomFilter
 {
 private:
     uchar_vector filter;
+    bool bFull, bEmpty;
     uint32_t nHashFuncs;
     uint32_t nTweak;
     uint8_t nFlags;
-
-    bool bFull, bEmpty;
 
     uint32_t hash(uint n, const uchar_vector& data) const;
 
