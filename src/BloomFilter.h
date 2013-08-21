@@ -25,9 +25,13 @@
 #ifndef BLOOM_FILTER_H__
 #define BLOOM_FILTER_H__
 
-#include "CoinNodeData.h"
+#include "uchar_vector.h"
 
 namespace Coin {
+
+// 20,000 items with fp rate < 0.1% or 10,000 items and <0.0001%
+static const unsigned int MAX_BLOOM_FILTER_SIZE = 36000; // bytes
+static const unsigned int MAX_BLOOM_FILTER_HASH_FUNCS = 50;
 
 class BloomFilter
 {
@@ -42,10 +46,10 @@ private:
     uint32_t hash(uint n, const uchar_vector& data) const;
 
 public:
-    void insert(const uchar_vector& data);
+    BloomFilter(uint32_t nElements, double falsePositiveRate, uint32_t _nTweak, uint8_t _nFlags);
 
+    void insert(const uchar_vector& data);
     bool match(const uchar_vector& data) const;
-    bool matchAndUpdate(const Transaction& tx, const uchar_vector& data) const;
 };
 
 } // Coin

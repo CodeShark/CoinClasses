@@ -23,6 +23,11 @@
 // THE SOFTWARE.
 
 #include "BloomFilter.h"
+#include <cmath>
+#include <algorithm>
+
+#define LN2SQUARED 0.4804530139182014246671025263266649717305529515945455
+#define LN2 0.6931471805599453094172321214581765680755001343602552
 
 using namespace Coin;
 
@@ -89,6 +94,17 @@ uint32_t murmurHash3(uint32_t seed, const uchar_vector& data)
 inline uint32_t BloomFilter::hash(uint n, const uchar_vector& data) const
 {
     return murmurHash3(n * 0xfba4c795 + nTweak, data) % (filter.size() * 8);
+}
+
+
+BloomFilter::BloomFilter(uint32_t nElements, double falsePositiveRate, uint32_t _nTweak, uint8_t _nFlags) :
+    filter(std::min((uint)(-1 / LN2SQUARED * nElements * log(falsePositiveRate)), MAX_BLOOM_FILTER_SIZE * 8) / 8, 0),
+    bFull(false),
+    bEmpty(false),
+    nHashFuncs(std::min((uint)(filter.size() * 8 / nElements * LN2), MAX_BLOOM_FILTER_HASH_FUNCS)),
+    nTweak(_nTweak),
+    nFlags(_nFlags)
+{
 }
 
 void BloomFilter::insert(const uchar_vector& data)
