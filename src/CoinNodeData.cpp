@@ -1749,7 +1749,7 @@ string MerkleBlock::toIndentedString(uint spaces) const
 {
     stringstream ss;
     ss << blankSpaces(spaces) << "blockHeader:" << endl << this->blockHeader.toIndentedString(spaces + 2) << endl
-       << blankSpaces(spaces) << "nTxs: " << this->nTxs
+       << blankSpaces(spaces) << "nTxs: " << this->nTxs << endl
        << blankSpaces(spaces) << "hashes:";
     for (uint i = 0; i < this->hashes.size(); i++) {
         ss << endl << blankSpaces(spaces + 2) << i << ":" << this->hashes[i].getHex();
