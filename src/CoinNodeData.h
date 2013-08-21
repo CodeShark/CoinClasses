@@ -63,6 +63,7 @@ void SetMultiSigAddressVersion(unsigned char version);
 #define MIN_TRANSACTION_SIZE         10 // blank transaction
 #define MIN_COIN_BLOCK_HEADER_SIZE   80
 #define MIN_COIN_BLOCK_SIZE         140
+#define MIN_MERKLE_BLOCK_SIZE        86
 
 #define MIN_FILTER_LOAD_SIZE         10
 
@@ -703,6 +704,33 @@ public:
     // Only supported for blocks version 2 or higher.
     // Returns -1 for older blocks.
     int64_t getHeight() const;
+};
+
+class MerkleBlock : public CoinNodeStructure
+{
+public:
+    CoinBlockHeader blockHeader;
+    uint32_t nTxs;
+    std::vector<uchar_vector> hashes;
+    uchar_vector flags;
+
+    MerkleBlock() { }
+    MerkleBlock(const CoinBlockHeader& _blockHeader, uint32_t _nTxs, const std::vector<uchar_vector>& _hashes, const uchar_vector& _flags)
+        : blockHeader(_blockHeader), nTxs(_nTxs), hashes(_hashes), flags(_flags) { }
+    MerkleBlock(const MerkleBlock& merkleBlock)
+        : blockHeader(merkleBlock.blockHeader), nTxs(merkleBlock.nTxs), hashes(merkleBlock.hashes), flags(merkleBlock.flags) { }
+    MerkleBlock(const uchar_vector& bytes) { setSerialized(bytes); }
+
+    const char* getCommand() const { return "merkleblock"; }
+    uint64_t getSize() const;
+    uchar_vector getSerialized() const;
+    void setSerialized(const uchar_vector& bytes);
+
+    std::string toString() const;
+    std::string toIndentedString(uint spaces = 0) const;
+
+    bool isValidMerkleRoot() const;
+    void updateMerkleRoot();
 };
 
 class HeadersMessage : public CoinNodeStructure

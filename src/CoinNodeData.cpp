@@ -1674,6 +1674,78 @@ int64_t CoinBlock::getHeight() const
 
 ///////////////////////////////////////////////////////////////////////////////
 //
+// class MerkleBlock implementation
+//
+uint64_t MerkleBlock::getSize() const
+{
+    return MIN_COIN_BLOCK_HEADER_SIZE + 4 + VarInt(hashes.size()).getSize() + (hashes.size() * 32) + VarInt(flags.size()).getSize() + flags.size();
+}
+
+uchar_vector MerkleBlock::getSerialized() const
+{
+    uchar_vector rval = blockHeader.getSerialized();
+    rval += uint_to_vch(nTxs, _BIG_ENDIAN);
+    rval += VarInt(hashes.size()).getSerialized();
+    for (uint i = 0; i < hashes.size(); i++) {
+        // TODO: make sure hashes are all 32 bytes
+        rval += hashes[i];
+    }
+    rval += VarInt(flags.size()).getSerialized();
+    rval += flags;
+    return rval;
+}
+
+void MerkleBlock::setSerialized(const uchar_vector& bytes)
+{
+    if (bytes.size() < MIN_MERKLE_BLOCK_SIZE)
+        throw runtime_error("Invalid data - MerkleBlock too small.");
+
+    this->blockHeader.setSerialized(bytes);
+    uint pos = MIN_COIN_BLOCK_HEADER_SIZE;
+
+    nTxs = vch_to_uint<uint32_t>(uchar_vector(bytes.begin() + pos, bytes.begin() + pos + 4), _BIG_ENDIAN); pos += 4;
+
+    VarInt nHashes(uchar_vector(bytes.begin() + pos, bytes.end())); pos += nHashes.getSize();
+    if (bytes.size() < pos + (nHashes.value * 32) + 1)
+        throw runtime_error("Invalid data - MerkleBlock hash count invalid.");
+
+    hashes.clear();
+    for (uint i = 0; i < nHashes.value; i++) {
+        hashes.push_back(uchar_vector(bytes.begin() + pos, bytes.begin() + pos + 32)); pos += 32;
+    }
+        
+    VarInt nFlags(uchar_vector(bytes.begin() + pos, bytes.end())); pos += nFlags.getSize();
+    if (bytes.size() < pos + nFlags.value)
+        throw runtime_error("Invalid data - MerkleBlock flag count invalid.");
+
+    flags.clear();
+    for (uint i = 0; i < nFlags.value; i++) {
+        flags.push_back(bytes[pos + i]);
+    }
+}
+
+std::string MerkleBlock::toString() const
+{
+    return "";
+}
+
+std::string MerkleBlock::toIndentedString(uint spaces) const
+{
+    return "";
+}
+
+bool MerkleBlock::isValidMerkleRoot() const
+{
+    return false;
+}
+
+void MerkleBlock::updateMerkleRoot()
+{
+}
+
+///////////////////////////////////////////////////////////////////////////////
+
+//
 // class HeadersMessage implementation
 //
 HeadersMessage::HeadersMessage(const string& hex)
