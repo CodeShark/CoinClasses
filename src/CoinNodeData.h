@@ -41,11 +41,12 @@
 void SetAddressVersion(unsigned char version);
 void SetMultiSigAddressVersion(unsigned char version);
 
-#define NODE_NETWORK    1
+#define NODE_NETWORK                  1
 
-#define MSG_ERROR   0
-#define MSG_TX      1
-#define MSG_BLOCK   2
+#define MSG_ERROR                     0
+#define MSG_TX                        1
+#define MSG_BLOCK                     2
+#define MSG_FILTERED_BLOCK            3
 
 #define MIN_VAR_INT_SIZE              1
 #define MIN_VAR_STR_SIZE              1
@@ -64,8 +65,12 @@ void SetMultiSigAddressVersion(unsigned char version);
 #define MIN_COIN_BLOCK_HEADER_SIZE   80
 #define MIN_COIN_BLOCK_SIZE         140
 #define MIN_MERKLE_BLOCK_SIZE        86
-
 #define MIN_FILTER_LOAD_SIZE         10
+
+#define BLOOM_UPDATE_NONE             0
+#define BLOOM_UPDATE_ALL              1
+#define BLOOM_UPDATE P2PUBKEY_ONLY    2
+#define BLOOM_UPDATE_MASK             3
 
 const char* itemTypeToString(uint itemType);
 
