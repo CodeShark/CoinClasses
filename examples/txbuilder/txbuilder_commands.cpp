@@ -33,6 +33,21 @@
 
 using namespace Coin;
 
+std::string newtx(bool bHelp, params_t& params)
+{
+    if (bHelp || params.size() > 2) {
+        return "newtx [version=1] [locktime=0] - create a blank transaction.";
+    }
+
+    uint32_t version = (params.size() > 0) ? strtoul(params[0].c_str(), NULL, 0) : 1;
+    uint32_t locktime = (params.size() > 1) ? strtoul(params[1].c_str(), NULL, 0) : 0;
+
+    Transaction tx;
+    tx.version = version;
+    tx.lockTime = locktime;
+    return tx.getSerialized().getHex();
+}
+
 std::string createmultisig(bool bHelp, params_t& params)
 {
     if (bHelp || params.size() < 2) {
@@ -65,8 +80,10 @@ std::string addoutput(bool bHelp, params_t& params)
     }
 
     TransactionBuilder txBuilder;
-    txBuilder.setSerialized(params[0]);
-    txBuilder.addOutput(params[1], strtoull(params[2].c_str(), NULL, 10));
+    if (params[0] != "") {
+        txBuilder.setSerialized(params[0]);
+        txBuilder.addOutput(params[1], strtoull(params[2].c_str(), NULL, 10));
+    }
     return txBuilder.getSerialized().getHex();
 }
 
@@ -208,7 +225,7 @@ std::string sign(bool bHelp, params_t& params)
         (params.size() == 5) ? static_cast<SigHashType>(strtoul(params[4].c_str(), NULL, 0)) : SIGHASH_ALL;
 
     TransactionBuilder txBuilder(tx);
-    txBuilder.sign(strtoul(params[1].c_str(), NULL, 10), params[2], params[3], sigHashType);
+    txBuilder.sign(strtoul(params[1].c_str(), NULL, 10), params[2], uchar_vector(params[3]), sigHashType);
 
     return txBuilder.getSerialized().getHex();
 }

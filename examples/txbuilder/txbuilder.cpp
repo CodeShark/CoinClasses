@@ -62,6 +62,7 @@ void initCommands()
 {
     command_map.clear();
     command_map["help"] = &help;
+    command_map["newtx"] = &newtx;
     command_map["createmultisig"] = &createmultisig;
     command_map["parsemultisig"] = &parsemultisig;
     command_map["addoutput"] = &addoutput;

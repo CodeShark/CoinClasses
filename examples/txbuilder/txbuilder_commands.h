@@ -33,6 +33,7 @@ typedef std::string                     (*fAction)(bool, params_t&);
 typedef std::map<std::string, fAction>  command_map_t;
 
 std::string help(bool bHelp, params_t& params);
+std::string newtx(bool bHelp, params_t& params);
 std::string createmultisig(bool bHelp, params_t& params);
 std::string parsemultisig(bool bHelp, params_t& params);
 std::string addoutput(bool bHelp, params_t& params);
