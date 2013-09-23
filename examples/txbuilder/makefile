@@ -15,7 +15,8 @@ LIBS = \
 OBJS = \
     obj/CoinNodeData.o \
     obj/IPv6.o \
-    obj/CoinKey.o
+    obj/CoinKey.o \
+    obj/StandardTransactions.o
 
 all: txbuilder
 
