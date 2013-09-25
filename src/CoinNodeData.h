@@ -78,7 +78,7 @@ std::string timeToString(time_t time);
 
 std::string blankSpaces(uint n);
 
-std::string satoshisToBtcString(uint64_t satoshis);
+std::string satoshisToBtcString(uint64_t satoshis, bool trailing_zeros = true);
 
 extern uchar_vector g_zero32bytes;
 

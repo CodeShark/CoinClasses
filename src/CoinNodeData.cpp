@@ -83,12 +83,22 @@ string blankSpaces(uint n)
     return ss.str();
 }
 
-string satoshisToBtcString(uint64_t satoshis)
+string satoshisToBtcString(uint64_t satoshis, bool trailing_zeros)
 {
     uint64_t wholePart = satoshis / 100000000ull;
     uint64_t fractionalPart = satoshis % 100000000ull;
+    uint fractionalLength = 8;
+    if (!trailing_zeros) {
+        if (fractionalPart == 0) {
+            fractionalLength = 1;
+        }
+        else while (fractionalPart % 10 == 0) {
+            fractionalPart /= 10;
+            fractionalLength--;
+        }
+    }
     stringstream ss;
-    ss << dec << wholePart << "." << setw(8) << setfill('0') << fractionalPart;
+    ss << dec << wholePart << "." << setw(fractionalLength) << setfill('0') << fractionalPart;
     return ss.str();
 }
 
