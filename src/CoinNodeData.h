@@ -299,7 +299,7 @@ public:
     uint64_t getSize() const { return 0; }
 
     uchar_vector getSerialized() const { uchar_vector rval; return rval; }
-    void setSerialized(const uchar_vector& bytes) { }
+    void setSerialized(const uchar_vector& /*bytes*/) { }
 
     std::string toString() const { return ""; }
     std::string toIndentedString(uint spaces = 0) const { return blankSpaces(spaces); }
@@ -314,7 +314,7 @@ public:
     uint64_t getSize() const { return 0; }
 
     uchar_vector getSerialized() const { uchar_vector rval; return rval; }
-    void setSerialized(const uchar_vector& bytes) { }
+    void setSerialized(const uchar_vector& /*bytes*/) { }
 
     std::string toString() const { return ""; }
     std::string toIndentedString(uint spaces = 0) const { return blankSpaces(spaces); }
@@ -771,7 +771,7 @@ public:
     uint64_t getSize() const { return 0; }
 
     uchar_vector getSerialized() const { uchar_vector rval; return rval; }
-    void setSerialized(const uchar_vector& bytes) { }
+    void setSerialized(const uchar_vector& /*bytes*/) { }
 
     std::string toString() const { return ""; }
     std::string toIndentedString(uint spaces = 0) const { return blankSpaces(spaces); }
