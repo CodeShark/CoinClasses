@@ -1,0 +1,163 @@
+////////////////////////////////////////////////////////////////////////////////
+//
+// secp256k1.h
+//
+// Copyright (c) 2013 Eric Lombrozo
+//
+// Permission is hereby granted, free of charge, to any person obtaining a copy
+// of this software and associated documentation files (the "Software"), to deal
+// in the Software without restriction, including without limitation the rights
+// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+// copies of the Software, and to permit persons to whom the Software is
+// furnished to do so, subject to the following conditions:
+//
+// The above copyright notice and this permission notice shall be included in
+// all copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+// THE SOFTWARE.
+//
+// Some portions taken from bitcoin/bitcoin,
+//      Copyright (c) 2009-2013 Satoshi Nakamoto, the Bitcoin developers
+
+#ifndef __SECP256K1_H_
+#define __SECP256K1_H_
+
+#include <assert.h>
+#include <vector>
+#include <stdexcept>
+
+#include <openssl/bn.h>
+#include <openssl/ec.h>
+#include <openssl/ecdsa.h>
+#include <openssl/evp.h>
+
+bool static inline EC_KEY_regenerate_key(EC_KEY* eckey, BIGNUM* priv_key)
+{
+    if (!eckey) return false;
+
+    const EC_GROUP *group = EC_KEY_get0_group(eckey);
+
+    bool rval = false;
+    EC_POINT* pub_key = NULL;
+    BN_CTX* ctx = BN_CTX_new();
+    if (!ctx) goto err;
+
+    pub_key = EC_POINT_new(group);
+    if (!pub_key) goto err;
+
+    if (!EC_POINT_mul(group, pub_key, priv_key, NULL, NULL, ctx)) goto err;
+
+    EC_KEY_set_private_key(eckey, priv_key);
+    EC_KEY_set_public_key(eckey, pub_key);
+
+    rval = true;
+
+err:
+    if (pub_key) EC_POINT_free(pub_key);
+    if (ctx) BN_CTX_free(ctx);
+    return rval;
+}
+
+class secp256k1_key
+{
+protected:
+    EC_KEY* pKey;
+    bool bSet;
+
+public:
+    secp256k1_key()
+    {
+        pKey = EC_KEY_new_by_curve_name(NID_secp256k1);
+        if (!pKey) {
+            throw std::runtime_error("secp256k1_key::secp256k1_key() : EC_KEY_new_by_curve_name failed.");
+        }
+        EC_KEY_set_conv_form(pKey, POINT_CONVERSION_COMPRESSED);
+        bSet = false;
+    }
+
+    ~secp256k1_key()
+    {
+        EC_KEY_free(pKey);
+    }
+
+    EC_KEY* getKey() const { return bSet ? pKey : NULL; }
+
+    EC_KEY* newKey()
+    {
+        if (!EC_KEY_generate_key(pKey)) {
+            throw std::runtime_error("secp256k1_key::newKey() : EC_KEY_generate_key failed.");
+        }
+        EC_KEY_set_conv_form(pKey, POINT_CONVERSION_COMPRESSED);
+        bSet = true;
+        return pKey;
+    }
+
+    std::vector<unsigned char> getPrivKey() const
+    {
+        if (!bSet) {
+            throw std::runtime_error("secp256k1_key::getPrivKey() : key is not set.");
+        }
+
+        const BIGNUM* bn = EC_KEY_get0_private_key(pKey);
+        if (!bn) {
+            throw std::runtime_error("secp256k1_key::getPrivKey() : EC_KEY_get0_private_key failed.");
+        }
+        unsigned char privKey[32];
+        assert(BN_num_bytes(bn) <= 32);
+        BN_bn2bin(bn, privKey);
+        return std::vector<unsigned char>(privKey, privKey + 32);
+    }
+
+    EC_KEY* setPrivKey(const std::vector<unsigned char>& key)
+    {
+        BIGNUM* bn = BN_bin2bn(&key[0], key.size(), NULL);
+        if (!bn) {
+            throw std::runtime_error("secp256k1_key::setPrivKey() : BN_bin2bn failed.");
+        }
+
+        bool bFail = !EC_KEY_regenerate_key(pKey, bn);
+        BN_clear_free(bn);
+        if (bFail) {
+            throw std::runtime_error("secp256k1_key::setPrivKey() : EC_KEY_set_private_key failed.");
+        }
+        bSet = true;
+        return pKey;
+    }
+
+    std::vector<unsigned char> getPubKey() const
+    {
+        if (!bSet) {
+            throw std::runtime_error("secp256k1_key::getPubKey() : key is not set.");
+        }
+
+        int nSize = i2o_ECPublicKey(pKey, NULL);
+        if (nSize == 0) {
+            throw std::runtime_error("secp256k1_key::getPubKey() : i2o_ECPublicKey failed.");
+        }
+
+        std::vector<unsigned char> pubKey(nSize, 0);
+        unsigned char* pBegin = &pubKey[0];
+        if (i2o_ECPublicKey(pKey, &pBegin) != nSize) {
+            throw std::runtime_error("secp256k1_key::getPubKey() : i2o_ECPublicKey returned unexpected size.");
+        }
+        return pubKey;
+    }
+};
+
+std::vector<unsigned char> secp256k1_sign(const secp256k1_key& key, const std::vector<unsigned char>& data)
+{
+    unsigned char signature[1024];
+    unsigned int nSize = 0;
+    if (!ECDSA_sign(0, (const unsigned char*)&data[0], data.size(), signature, &nSize, key.getKey())) {
+        throw std::runtime_error("secp256k1_sign(): ECDSA_sign failed.");
+    }
+    return std::vector<unsigned char>(signature, signature + nSize);
+}
+
+#endif // __SECP256K1_H_1
