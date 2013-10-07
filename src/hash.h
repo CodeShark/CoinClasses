@@ -28,6 +28,7 @@
 #include "uchar_vector.h"
 #include <openssl/sha.h>
 #include <openssl/ripemd.h>
+#include <openssl/hmac.h>
 
 // All inputs and outputs are big endian
 
@@ -81,6 +82,12 @@ inline uchar_vector sha1(const uchar_vector& data)
     SHA1_Final(hash, &sha1);
     uchar_vector rval(hash, SHA_DIGEST_LENGTH);
     return rval;
+}
+
+inline uchar_vector hmac_sha512(const uchar_vector& key, const uchar_vector& data)
+{
+    unsigned char* digest = HMAC(EVP_sha512(), (unsigned char*)&key[0], key.size(), (unsigned char*)&data[0], data.size(), NULL, NULL);
+    return uchar_vector(digest, 64);
 }
 
 #endif
