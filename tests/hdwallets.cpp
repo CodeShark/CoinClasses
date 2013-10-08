@@ -7,36 +7,46 @@ const uchar_vector parent_fingerprint("00000000");
 
 using namespace Coin;
 
-void displayKeychain(const HDKeychain& keychain)
+void show(const HDKeychain& keychain, bool showfields = false)
 {
-    std::cout << std::endl;
-    std::cout << keychain.toString();
+    if (showfields) {
+        std::cout << keychain.toString();
+    }
     std::cout << "extkey: " << toBase58Check(keychain.extkey()) << std::endl;
 }
 
 int main()
 {
     try {
-        uchar_vector seed("000102030405060708090a0b0c0d0e0f");
-        
-        HDSeed hdSeed(seed);
+        // Set version
+        HDKeychain::setVersions(0x0488ADE4, 0x0488B21E);
+
+        // Set seed
+        HDSeed hdSeed(uchar_vector("000102030405060708090a0b0c0d0e0f"));
         bytes_t k = hdSeed.getMasterKey();
         bytes_t c = hdSeed.getMasterChainCode();
 
-        HDKeychain::setVersions(0x0488ADE4, 0x0488B21E);
+
         HDKeychain keychain1(0, 0, 0, c, k);
-        displayKeychain(keychain1);
+        HDKeychain keychain2(keychain1, true);
+        show(keychain2);
+        show(keychain1); 
 
-        HDKeychain keychain2;
-        keychain1.getPublic(keychain2);
-        displayKeychain(keychain2);
+        std::cout << "----------------------------------" << std::endl;
 
-        if (!keychain1.getChild(keychain2, 0)) {
+        HDKeychain keychain3;
+        if (!keychain1.getChild(keychain3, 0)) {
             throw std::runtime_error("Derivation for i = 0 failed.");
         }
-        displayKeychain(keychain2);
 
-        std::cout << std::endl;
+        HDKeychain keychain4;
+        if (!keychain2.getChild(keychain4, 0)) {
+            throw std::runtime_error("Derivation for i = 0 failed.");
+        }
+        
+        show(keychain3);
+        show(keychain4);
+
         return 0;
     }
     catch (const std::exception& e) {

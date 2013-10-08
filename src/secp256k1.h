@@ -321,13 +321,13 @@ protected:
             goto finish;
         }
 
+        return;
+
     finish:
         if (group) EC_GROUP_free(group);
         if (point) EC_POINT_free(point);
 
-        if (!err.empty()) {
-            throw std::runtime_error(std::string("secp256k1_point::init() - ") + err);
-        }
+        throw std::runtime_error(std::string("secp256k1_point::init() - ") + err);
     }
 
 private:

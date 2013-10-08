@@ -75,6 +75,8 @@ public:
     HDKeychain(unsigned char depth, uint32_t parent_fp, uint32_t child_num, const bytes_t& chain_code, const bytes_t& key);
     HDKeychain(const bytes_t& extkey);
 
+    explicit HDKeychain(const HDKeychain& source, bool make_public = false);
+
     bytes_t extkey() const;
 
     uint32_t version() const { return version_; }
@@ -86,7 +88,7 @@ public:
 
     const bytes_t& pubkey() const { return pubkey_; }
 
-    bool isPrivate() const { return (key_[0] == 0x00); }
+    bool isPrivate() const { return ( key_.size() == 33 && key_[0] == 0x00); }
     bytes_t hash() const; // hash is ripemd160(sha256(pubkey))
     uint32_t fp() const; // fingerprint is first 32 bits of hash
 
@@ -137,7 +139,7 @@ inline HDKeychain::HDKeychain(unsigned char depth, uint32_t parent_fp, uint32_t 
         privkey += key_;
         key_ = privkey;
     }
-    if (key_.size() != 33) {
+    else if (key_.size() != 33) {
         throw std::runtime_error("Invalid key.");
     }
 
@@ -159,6 +161,23 @@ inline HDKeychain::HDKeychain(const bytes_t& extkey)
     key_.assign(extkey.begin() + 45, extkey.begin() + 78);
 
     setPubkey();
+}
+
+inline HDKeychain::HDKeychain(const HDKeychain& source, bool make_public)
+{
+    depth_ = source.depth_;
+    parent_fp_ = source.parent_fp_;
+    child_num_ = source.child_num_;
+    chain_code_ = source.chain_code_;
+
+    if (make_public || !source.isPrivate()) {
+        version_ = pub_version_;
+        key_ = source.pubkey_;
+    }
+    else {
+        version_ = priv_version_;
+        key_ = source.key_;
+    }
 }
 
 inline bytes_t HDKeychain::extkey() const
@@ -227,18 +246,23 @@ inline bool HDKeychain::getChild(HDKeychain& child, uint32_t i) const
     BigInt Il(left32);
     if (Il >= CURVE_MODULUS) return false;
 
-    bytes_t child_key;
     if (isPrivate()) {
         BigInt k(key_);
         k += Il;
         k %= CURVE_MODULUS;
         if (k.isZero()) return false;
-        child.key_ = k.getBytes();
+        uchar_vector child_key;
+        child_key.push_back(0x00);
+        child_key += k.getBytes(); 
+        child.key_ = child_key;
     }
     else {
         secp256k1_point K;
+std::cout << "secp256k1_point K;" << std::endl; 
         K.bytes(key_);
+std::cout << "K.bytes(key_);" << std::endl;
         K.generator_mul(left32);
+std::cout << "K.generator_mul(left32);" << std::endl;
         if (K.is_at_infinity()) return false;
         child.key_ = K.bytes();
     }
