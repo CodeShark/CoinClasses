@@ -229,29 +229,34 @@ inline uint32_t HDKeychain::fp() const
 
 inline HDKeychain HDKeychain::getPublic() const
 {
+    if (!valid_) {
+        throw std::runtime_error("Keychain is invalid.");
+    }
+
     HDKeychain pub;
     pub.valid_ = valid_;
-    if (pub.valid_) {
-        pub.version_ = pub_version_;
-        pub.depth_ = depth_;
-        pub.parent_fp_ = parent_fp_;
-        pub.child_num_ = child_num_;
-        pub.chain_code_ = chain_code_;
-        pub.key_ = pub.pubkey_ = pubkey_;
-    }
+    pub.version_ = pub_version_;
+    pub.depth_ = depth_;
+    pub.parent_fp_ = parent_fp_;
+    pub.child_num_ = child_num_;
+    pub.chain_code_ = chain_code_;
+    pub.key_ = pub.pubkey_ = pubkey_;
     return pub;
 }
 
 inline HDKeychain HDKeychain::getChild(uint32_t i) const
 {
-    HDKeychain child;
-    child.valid_ = false;
-    if (!valid_) return child;
+    if (!valid_) {
+        throw std::runtime_error("Keychain is invalid.");
+    }
 
     bool priv_derivation = 0x80000000 & i;
     if (!isPrivate() && priv_derivation) {
         throw std::runtime_error("Cannot do private key derivation on public key.");
     }
+
+    HDKeychain child;
+    child.valid_ = false;
 
     uchar_vector data;
     data += priv_derivation ? key_ : pubkey_;
