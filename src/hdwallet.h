@@ -256,9 +256,7 @@ inline HDKeychain HDKeychain::getChild(uint32_t i) const
     data.push_back((i >> 8) & 0xff);
     data.push_back(i & 0xff);
 
-    std::cout << "data: " << data.getHex() << std::endl;
     bytes_t digest = hmac_sha512(chain_code_, data);
-    std::cout << "digest: " << uchar_vector(digest).getHex() << std::endl;
     bytes_t left32(digest.begin(), digest.begin() + 32);
     BigInt Il(left32);
     if (Il >= CURVE_ORDER) return child;
