@@ -26,30 +26,25 @@ int main()
         bytes_t k = hdSeed.getMasterKey();
         bytes_t c = hdSeed.getMasterChainCode();
 
-
         HDKeychain priv_m(0, 0, 0, c, k);
         HDKeychain pub_m = priv_m.getPublic();
-        if (!pub_m) cout << "pub_m is not valid" << endl;
         cout << "[Chain m]" << endl;
         show(pub_m);
         show(priv_m);
-        cout << "-----------------------------------" << endl;
+        cout << endl;
 
-        HDKeychain priv_m0 = priv_m.getChild(0x00000000);
-        HDKeychain pub_m0 = priv_m0.getPublic();
-        if (!pub_m0) cout << "pub_m0 is not valid" << endl;
-        HDKeychain pub_m0_ = pub_m.getChild(0x00000000);
+        HDKeychain priv_m0p = priv_m.getChild(0x80000000);
+        HDKeychain pub_m0p = priv_m0p.getPublic();
         cout << "[Chain m/0']" << endl;
-        show(pub_m0);
-        show(pub_m0_);
-        show(priv_m0);
-        cout << "-----------------------------------" << endl;
+        show(pub_m0p);
+        show(priv_m0p);
+        cout << endl;
 
-        HDKeychain priv_m01p = priv_m0.getChild(0x80000001);
-        HDKeychain pub_m01p = priv_m01p.getPublic();
+        HDKeychain priv_m0p1 = priv_m0p.getChild(0x00000001);
+        HDKeychain pub_m0p1 = priv_m0p1.getPublic();
         cout << "[Chain m/0'/1]" << endl;
-        show(pub_m01p);
-        show(priv_m01p);
+        show(pub_m0p1);
+        show(priv_m0p1);
         return 0;
     }
     catch (const std::exception& e) {

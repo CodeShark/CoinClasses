@@ -199,12 +199,12 @@ inline bytes_t HDKeychain::extkey() const
     extkey.push_back((uint32_t)parent_fp_ >> 24);
     extkey.push_back(((uint32_t)parent_fp_ >> 16) & 0xff);
     extkey.push_back(((uint32_t)parent_fp_ >> 8) & 0xff);
-    extkey.push_back((uint32_t)parent_fp_ && 0xff);
+    extkey.push_back((uint32_t)parent_fp_ & 0xff);
 
     extkey.push_back((uint32_t)child_num_ >> 24);
     extkey.push_back(((uint32_t)child_num_ >> 16) & 0xff);
     extkey.push_back(((uint32_t)child_num_ >> 8) & 0xff);
-    extkey.push_back((uint32_t)child_num_ && 0xff);
+    extkey.push_back((uint32_t)child_num_ & 0xff);
 
     extkey += chain_code_;
     extkey += key_;
@@ -246,15 +246,15 @@ inline HDKeychain HDKeychain::getChild(uint32_t i) const
     }
 
     HDKeychain child;
-    child.valid_ = valid_;
-    if (!child.valid_) return child;
+    child.valid_ = false;
+    if (!valid_) return child;
 
     uchar_vector data;
     data += priv_derivation ? key_ : pubkey_;
     data.push_back(i >> 24);
     data.push_back((i >> 16) & 0xff);
-    data.push_back((i  >> 8) & 0xff);
-    data.push_back(i && 0xff);
+    data.push_back((i >> 8) & 0xff);
+    data.push_back(i & 0xff);
 
     bytes_t digest = hmac_sha512(chain_code_, data);
     bytes_t left32(digest.begin(), digest.begin() + 32);
@@ -267,10 +267,11 @@ inline HDKeychain HDKeychain::getChild(uint32_t i) const
         k %= CURVE_MODULUS;
         if (k.isZero()) return child;
 
-        uchar_vector child_key;
-        child_key.push_back(0x00);
-        child_key += k.getBytes(); 
-        child.key_ = child_key;
+        bytes_t child_key = k.getBytes();
+        // pad with 0's to make it 33 bytes
+        uchar_vector padded_key(33 - child_key.size(), 0);
+        padded_key += child_key;
+        child.key_ = padded_key;
         child.updatePubkey();
     }
     else {
