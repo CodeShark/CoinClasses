@@ -41,8 +41,8 @@
 
 namespace Coin {
 
-const uchar_vector CURVE_MODULUS_BYTES("FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEFFFFFC2F");
-const BigInt CURVE_MODULUS(CURVE_MODULUS_BYTES);
+const uchar_vector CURVE_ORDER_BYTES("FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEBAAEDCE6AF48A03BBFD25E8CD0364141");
+const BigInt CURVE_ORDER(CURVE_ORDER_BYTES);
 
 const uchar_vector BITCOIN_SEED("426974636f696e2073656564"); // key = "Bitcoin seed"
 
@@ -256,15 +256,17 @@ inline HDKeychain HDKeychain::getChild(uint32_t i) const
     data.push_back((i >> 8) & 0xff);
     data.push_back(i & 0xff);
 
+    std::cout << "data: " << data.getHex() << std::endl;
     bytes_t digest = hmac_sha512(chain_code_, data);
+    std::cout << "digest: " << uchar_vector(digest).getHex() << std::endl;
     bytes_t left32(digest.begin(), digest.begin() + 32);
     BigInt Il(left32);
-    if (Il >= CURVE_MODULUS) return child;
+    if (Il >= CURVE_ORDER) return child;
 
     if (isPrivate()) {
         BigInt k(key_);
         k += Il;
-        k %= CURVE_MODULUS;
+        k %= CURVE_ORDER;
         if (k.isZero()) return child;
 
         bytes_t child_key = k.getBytes();
@@ -276,7 +278,7 @@ inline HDKeychain HDKeychain::getChild(uint32_t i) const
     }
     else {
         secp256k1_point K;
-        K.bytes(key_);
+        K.bytes(pubkey_);
         K.generator_mul(left32);
         if (K.is_at_infinity()) return child;
 

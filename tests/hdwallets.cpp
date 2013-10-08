@@ -6,7 +6,7 @@
 using namespace Coin;
 using namespace std;
 
-void show(const HDKeychain& keychain, bool showfields = false)
+void show(const HDKeychain& keychain, bool showfields = true)
 {
     if (showfields) {
         std::cout << keychain.toString();
@@ -29,21 +29,23 @@ int main()
         HDKeychain priv_m(0, 0, 0, c, k);
         HDKeychain pub_m = priv_m.getPublic();
         cout << "[Chain m]" << endl;
-        show(pub_m);
+ //       show(pub_m);
         show(priv_m);
         cout << endl;
 
         HDKeychain priv_m0p = priv_m.getChild(0x80000000);
         HDKeychain pub_m0p = priv_m0p.getPublic();
         cout << "[Chain m/0']" << endl;
-        show(pub_m0p);
+ //       show(pub_m0p);
         show(priv_m0p);
         cout << endl;
 
         HDKeychain priv_m0p1 = priv_m0p.getChild(0x00000001);
         HDKeychain pub_m0p1 = priv_m0p1.getPublic();
+        HDKeychain pub_m0p1_ = pub_m0p.getChild(0x00000001);
         cout << "[Chain m/0'/1]" << endl;
-        show(pub_m0p1);
+//        show(pub_m0p1);
+//        show(pub_m0p1_);
         show(priv_m0p1);
         return 0;
     }
