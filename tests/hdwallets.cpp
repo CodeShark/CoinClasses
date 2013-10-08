@@ -47,7 +47,7 @@ int main()
         stringstream chainname;
         chainname << "Chain m";
 
-        HDKeychain prv(0, 0, 0, c, k);
+        HDKeychain prv(k, c);
         HDKeychain pub = prv.getPublic();
         showStep(chainname.str(), pub, prv);
 

@@ -72,7 +72,7 @@ class HDKeychain
 {
 public:
     HDKeychain() { }
-    HDKeychain(unsigned char depth, uint32_t parent_fp, uint32_t child_num, const bytes_t& chain_code, const bytes_t& key);
+    HDKeychain(const bytes_t& key, const bytes_t& chain_code, uint32_t child_num = 0, uint32_t parent_fp = 0, uint32_t depth = 0);
     HDKeychain(const bytes_t& extkey);
 
     HDKeychain(HDKeychain&& source);
@@ -128,8 +128,7 @@ private:
     }
 };
 
-
-inline HDKeychain::HDKeychain(unsigned char depth, uint32_t parent_fp, uint32_t child_num, const bytes_t& chain_code, const bytes_t& key)
+inline HDKeychain::HDKeychain(const bytes_t& key, const bytes_t& chain_code, uint32_t child_num, uint32_t parent_fp, uint32_t depth)
     : depth_(depth), parent_fp_(parent_fp), child_num_(child_num), chain_code_(chain_code), key_(key)
 {
     if (chain_code_.size() != 32) {
