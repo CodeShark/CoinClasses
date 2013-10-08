@@ -37,6 +37,8 @@
 #include <openssl/ecdsa.h>
 #include <openssl/evp.h>
 
+#include "typedefs.h"
+
 bool static inline EC_KEY_regenerate_key(EC_KEY* eckey, BIGNUM* priv_key)
 {
     if (!eckey) return false;
@@ -46,19 +48,19 @@ bool static inline EC_KEY_regenerate_key(EC_KEY* eckey, BIGNUM* priv_key)
     bool rval = false;
     EC_POINT* pub_key = NULL;
     BN_CTX* ctx = BN_CTX_new();
-    if (!ctx) goto err;
+    if (!ctx) goto finish;
 
     pub_key = EC_POINT_new(group);
-    if (!pub_key) goto err;
+    if (!pub_key) goto finish;
 
-    if (!EC_POINT_mul(group, pub_key, priv_key, NULL, NULL, ctx)) goto err;
+    if (!EC_POINT_mul(group, pub_key, priv_key, NULL, NULL, ctx)) goto finish;
 
     EC_KEY_set_private_key(eckey, priv_key);
     EC_KEY_set_public_key(eckey, pub_key);
 
     rval = true;
 
-err:
+finish:
     if (pub_key) EC_POINT_free(pub_key);
     if (ctx) BN_CTX_free(ctx);
     return rval;
@@ -66,10 +68,6 @@ err:
 
 class secp256k1_key
 {
-protected:
-    EC_KEY* pKey;
-    bool bSet;
-
 public:
     secp256k1_key()
     {
@@ -98,7 +96,7 @@ public:
         return pKey;
     }
 
-    std::vector<unsigned char> getPrivKey() const
+    bytes_t getPrivKey() const
     {
         if (!bSet) {
             throw std::runtime_error("secp256k1_key::getPrivKey() : key is not set.");
@@ -111,10 +109,10 @@ public:
         unsigned char privKey[32];
         assert(BN_num_bytes(bn) <= 32);
         BN_bn2bin(bn, privKey);
-        return std::vector<unsigned char>(privKey, privKey + 32);
+        return bytes_t(privKey, privKey + 32);
     }
 
-    EC_KEY* setPrivKey(const std::vector<unsigned char>& key)
+    EC_KEY* setPrivKey(const bytes_t& key)
     {
         BIGNUM* bn = BN_bin2bn(&key[0], key.size(), NULL);
         if (!bn) {
@@ -130,7 +128,7 @@ public:
         return pKey;
     }
 
-    std::vector<unsigned char> getPubKey() const
+    bytes_t getPubKey() const
     {
         if (!bSet) {
             throw std::runtime_error("secp256k1_key::getPubKey() : key is not set.");
@@ -141,23 +139,177 @@ public:
             throw std::runtime_error("secp256k1_key::getPubKey() : i2o_ECPublicKey failed.");
         }
 
-        std::vector<unsigned char> pubKey(nSize, 0);
+        bytes_t pubKey(nSize, 0);
         unsigned char* pBegin = &pubKey[0];
         if (i2o_ECPublicKey(pKey, &pBegin) != nSize) {
             throw std::runtime_error("secp256k1_key::getPubKey() : i2o_ECPublicKey returned unexpected size.");
         }
         return pubKey;
     }
+
+private:
+    EC_KEY* pKey;
+    bool bSet;
 };
 
-std::vector<unsigned char> secp256k1_sign(const secp256k1_key& key, const std::vector<unsigned char>& data)
+bytes_t secp256k1_sign(const secp256k1_key& key, const bytes_t& data)
 {
     unsigned char signature[1024];
     unsigned int nSize = 0;
     if (!ECDSA_sign(0, (const unsigned char*)&data[0], data.size(), signature, &nSize, key.getKey())) {
         throw std::runtime_error("secp256k1_sign(): ECDSA_sign failed.");
     }
-    return std::vector<unsigned char>(signature, signature + nSize);
+    return bytes_t(signature, signature + nSize);
 }
+
+class secp256k1_point
+{
+public:
+    secp256k1_point()
+    {
+        init();
+    }
+
+    secp256k1_point(const secp256k1_point& source)
+    {
+        init();
+        if (!EC_GROUP_copy(group, source.group)) throw std::runtime_error("secp256k1_point::secp256k1_point(const secp256k1_point&) - EC_GROUP_copy failed.");
+        if (!EC_POINT_copy(point, source.point)) throw std::runtime_error("secp256k1_point::secp256k1_point(const secp256k1_point&) - EC_POINT_copy failed.");
+    }
+
+    ~secp256k1_point()
+    {
+        if (point) EC_POINT_free(point);
+        if (group) EC_GROUP_free(group);
+        if (ctx)   BN_CTX_free(ctx);
+    }
+
+    secp256k1_point& operator=(const secp256k1_point& rhs)
+    {
+        if (!EC_GROUP_copy(group, rhs.group)) throw std::runtime_error("secp256k1_point::operator= - EC_GROUP_copy failed.");
+        if (!EC_POINT_copy(point, rhs.point)) throw std::runtime_error("secp256k1_point::operator= - EC_POINT_copy failed.");
+    }
+
+    void set(const bytes_t& bytes)
+    {
+        std::string err;
+
+        EC_POINT* rval;
+
+        BIGNUM* bn = BN_bin2bn(&bytes[0], bytes.size(), NULL);
+        if (!bn) {
+            err = "BN_bin2bn failed.";
+            goto finish;
+        }
+
+        rval = EC_POINT_bn2point(group, bn, point, ctx);
+        if (!rval) {
+            err = "EC_POINT_bn2point failed.";
+            goto finish;
+        }
+
+    finish:
+        if (bn) BN_clear_free(bn);
+
+        if (!err.empty()) {
+            throw std::runtime_error(std::string("secp256k1_point::set() - ") + err);
+        }
+    }
+
+    bytes_t get()
+    {
+        bytes_t bytes(33);
+
+        std::string err;
+
+        BIGNUM* rval;
+
+        BIGNUM* bn = BN_new();
+        if (!bn) {
+            err = "BN_new failed.";
+            goto finish;
+        }
+
+        rval = EC_POINT_point2bn(group, point, POINT_CONVERSION_COMPRESSED, bn, ctx);
+        if (!rval) {
+            err = "EC_POINT_point2bn failed.";
+            goto finish;
+        }
+
+        assert(BN_num_bytes(bn) == 33);
+        BN_bn2bin(bn, &bytes[0]);
+
+    finish:
+        if (bn) BN_clear_free(bn);
+
+        if (!err.empty()) {
+            throw std::runtime_error(std::string("secp256k1_point::get() - ") + err);
+        }
+
+        return bytes; 
+    }
+
+    secp256k1_point& operator+=(const secp256k1_point& rhs)
+    {
+        if (!EC_POINT_add(group, point, point, rhs.point, ctx)) {
+            throw std::runtime_error("secp256k1_point::operator+= - EC_POINT_add failed.");
+        }
+    }
+
+    secp256k1_point& operator*=(const bytes_t& rhs)
+    {
+        BIGNUM* bn = BN_bin2bn(&rhs[0], rhs.size(), NULL);
+        if (!bn) {
+            throw std::runtime_error("secp256k1_point::operator*=  - BN_bin2bn failed.");
+        }
+
+        int rval = EC_POINT_mul(group, point, NULL, point, bn, ctx);
+        BN_clear_free(bn);
+
+        if (rval == 0) {
+            throw std::runtime_error("secp256k1_point::operator*=  - EC_POINT_mul failed.");
+        }
+    }
+
+    const secp256k1_point operator+(const secp256k1_point& rhs) const { return secp256k1_point(*this) += rhs; }
+    const secp256k1_point operator*(const bytes_t& rhs) const { return secp256k1_point(*this) *= rhs; }
+
+protected:
+    void init()
+    {
+        std::string err;
+
+        group = EC_GROUP_new_by_curve_name(NID_secp256k1);
+        if (!group) {
+            err = "EC_KEY_new_by_curve_name failed.";
+            goto finish;
+        }
+
+        point = EC_POINT_new(group);
+        if (!point) {
+            err = "EC_POINT_new failed.";
+            goto finish;
+        }
+
+        ctx = BN_CTX_new();
+        if (!ctx) {
+            err = "BN_CTX_new failed.";
+            goto finish;
+        }
+
+    finish:
+        if (group) EC_GROUP_free(group);
+        if (point) EC_POINT_free(point);
+
+        if (!err.empty()) {
+            throw std::runtime_error(std::string("secp256k1_point::init() - ") + err);
+        }
+    }
+
+private:
+    EC_GROUP* group;
+    EC_POINT* point;
+    BN_CTX*   ctx;    
+};
 
 #endif // __SECP256K1_H_1

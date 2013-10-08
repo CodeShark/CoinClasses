@@ -69,7 +69,7 @@ public:
         this->allocate();
         this->setBytes(bytes, bigEndian);
     }
-    BigInt(const std::string& inBase, unsigned int base, const char* alphabet)
+    BigInt(const std::string& inBase, unsigned int base = 16, const char* alphabet = "0123456789abcdef")
     {
         this->allocate();
         this->setInBase(inBase, base, alphabet);
@@ -92,8 +92,9 @@ public:
     //BigInt& operator=(BN_ULONG rhs) { if (!BN_set_word(this->bn, rhs)) throw std::runtime_error("BIGNUM Error."); return *this; }
     BigInt& operator=(const BigInt& bigint)
     {
-        if (!(this->bn = BN_dup(bigint.bn))) throw std::runtime_error("BIGNUM allocation error.");
-        if (!(this->ctx = BN_CTX_new())) { BN_free(this->bn); throw std::runtime_error("BIGNUM allocation error."); }
+        if (!(BN_copy(this->bn, bigint.bn))) throw std::runtime_error("BIGNUM allocation error.");
+        //if (!(this->bn = BN_dup(bigint.bn))) throw std::runtime_error("BIGNUM allocation error.");
+        //if (!(this->ctx = BN_CTX_new())) { BN_free(this->bn); throw std::runtime_error("BIGNUM allocation error."); }
         return *this;
     }
 
