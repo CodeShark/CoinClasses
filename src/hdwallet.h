@@ -244,14 +244,14 @@ inline HDKeychain HDKeychain::getPublic() const
 
 inline HDKeychain HDKeychain::getChild(uint32_t i) const
 {
+    HDKeychain child;
+    child.valid_ = false;
+    if (!valid_) return child;
+
     bool priv_derivation = 0x80000000 & i;
     if (!isPrivate() && priv_derivation) {
         throw std::runtime_error("Cannot do private key derivation on public key.");
     }
-
-    HDKeychain child;
-    child.valid_ = false;
-    if (!valid_) return child;
 
     uchar_vector data;
     data += priv_derivation ? key_ : pubkey_;
