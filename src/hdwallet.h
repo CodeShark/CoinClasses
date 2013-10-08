@@ -136,8 +136,12 @@ inline HDKeychain::HDKeychain(unsigned char depth, uint32_t parent_fp, uint32_t 
         throw std::runtime_error("Invalid chain code.");
     }
 
-    // TODO: make sure key < prime modulus of secp256k1 field
-    if (key_.size() == 32) {
+   if (key_.size() == 32) {
+        BigInt n(key_);
+        if (n >= CURVE_ORDER || n.isZero()) {
+            throw std::runtime_error("Invalid key.");
+        }
+
         uchar_vector privkey;
         privkey.push_back(0x00);
         privkey += key_;
