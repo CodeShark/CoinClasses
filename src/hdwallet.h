@@ -34,6 +34,7 @@
 #include "BigInt.h"
 #include "uchar_vector.h"
 
+#include <sstream>
 #include <stdexcept>
 
 #include "typedefs.h"
@@ -75,7 +76,7 @@ public:
     bytes_t extkey() const;
 
     uint32_t version() const { return version_; }
-    unsigned char depth() const { return depth_; }
+    int depth() const { return depth_; }
     uint32_t parent_fp() const { return parent_fp_; }
     uint32_t child_num() const { return child_num_; }
     const bytes_t& chain_code() const { return chain_code_; }
@@ -89,6 +90,8 @@ public:
     bool getChild(HDKeychain& child, uint32_t i) const;
 
     static void setVersions(uint32_t priv_version, uint32_t pub_version) { priv_version_ = priv_version; pub_version = pub_version; }
+
+    std::string toString() const;
 
 private:
     static uint32_t priv_version_;
@@ -226,6 +229,18 @@ inline bool HDKeychain::getChild(HDKeychain& child, uint32_t i) const
     child.chain_code_.assign(digest.begin() + 32, digest.end());
 
     return true;
+}
+
+inline std::string HDKeychain::toString() const
+{
+    std::stringstream ss;
+    ss << "version: " << std::hex << version_ << std::endl
+       << "depth: " << depth() << std::endl
+       << "parent_fp: " << parent_fp_ << std::endl
+       << "child_num: " << child_num_ << std::endl
+       << "chain_code: " << uchar_vector(chain_code_).getHex() << std::endl
+       << "key: " << uchar_vector(key_).getHex() << std::endl;
+    return ss.str();
 }
 
 uint32_t HDKeychain::priv_version_ = 0;
