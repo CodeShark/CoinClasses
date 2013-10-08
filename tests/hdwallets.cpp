@@ -7,8 +7,16 @@
 using namespace Coin;
 using namespace std;
 
+#define P(i) 0x80000000 | i
+
+/*
 const uchar_vector SEED("000102030405060708090a0b0c0d0e0f");
-const uint32_t CHAIN[] = { 0x80000000, 0x00000001, 0x80000002, 0x00000002, 0x3b9aca00 };
+const uint32_t CHAIN[] = { P(0), 1, P(2), 2, 1000000000 };
+*/
+
+const uchar_vector SEED("fffcf9f6f3f0edeae7e4e1dedbd8d5d2cfccc9c6c3c0bdbab7b4b1aeaba8a5a29f9c999693908d8a8784817e7b7875726f6c696663605d5a5754514e4b484542");
+const uint32_t CHAIN[] = { 0, P(2147483647), 1, P(2147483646), 2 };
+
 const unsigned int CHAIN_LENGTH = sizeof(CHAIN)/sizeof(uint32_t);
 
 void showKey(const HDKeychain& keychain)
