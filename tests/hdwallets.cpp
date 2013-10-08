@@ -16,17 +16,32 @@ void displayKeychain(const HDKeychain& keychain)
 
 int main()
 {
-    uchar_vector seed("000102030405060708090a0b0c0d0e0f");
-    
-    HDSeed hdSeed(seed);
-    bytes_t k = hdSeed.getMasterKey();
-    bytes_t c = hdSeed.getMasterChainCode();
+    try {
+        uchar_vector seed("000102030405060708090a0b0c0d0e0f");
+        
+        HDSeed hdSeed(seed);
+        bytes_t k = hdSeed.getMasterKey();
+        bytes_t c = hdSeed.getMasterChainCode();
 
-    HDKeychain::setVersions(0x0488ADE4, 0x0488B21E);
-    HDKeychain keychain(0, 0, 0, c, k);
-    displayKeychain(keychain);
+        HDKeychain::setVersions(0x0488ADE4, 0x0488B21E);
+        HDKeychain keychain1(0, 0, 0, c, k);
+        displayKeychain(keychain1);
 
-    std::cout << std::endl;
-    return 0;
+        HDKeychain keychain2;
+        keychain1.getPublic(keychain2);
+        displayKeychain(keychain2);
+
+        if (!keychain1.getChild(keychain2, 0)) {
+            throw std::runtime_error("Derivation for i = 0 failed.");
+        }
+        displayKeychain(keychain2);
+
+        std::cout << std::endl;
+        return 0;
+    }
+    catch (const std::exception& e) {
+        std::cout << "Error: " << e.what() << std::endl;
+    } 
+    return 1;
 }
 

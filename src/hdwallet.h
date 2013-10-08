@@ -41,7 +41,8 @@
 
 namespace Coin {
 
-const BigInt CURVE_MODULUS("FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEFFFFFC2F");
+const uchar_vector CURVE_MODULUS_BYTES("FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEFFFFFC2F");
+const BigInt CURVE_MODULUS(CURVE_MODULUS_BYTES);
 
 const uchar_vector BITCOIN_SEED("426974636f696e2073656564"); // key = "Bitcoin seed"
 
@@ -70,6 +71,7 @@ inline HDSeed::HDSeed(const bytes_t& seed)
 class HDKeychain
 {
 public:
+    HDKeychain() { }
     HDKeychain(unsigned char depth, uint32_t parent_fp, uint32_t child_num, const bytes_t& chain_code, const bytes_t& key);
     HDKeychain(const bytes_t& extkey);
 
@@ -82,6 +84,8 @@ public:
     const bytes_t& chain_code() const { return chain_code_; }
     const bytes_t& key() const { return key_; }
 
+    const bytes_t& pubkey() const { return pubkey_; }
+
     bool isPrivate() const { return (key_[0] == 0x00); }
     bytes_t hash() const; // hash is ripemd160(sha256(pubkey))
     uint32_t fp() const; // fingerprint is first 32 bits of hash
@@ -89,7 +93,7 @@ public:
     void getPublic(HDKeychain& pub) const;
     bool getChild(HDKeychain& child, uint32_t i) const;
 
-    static void setVersions(uint32_t priv_version, uint32_t pub_version) { priv_version_ = priv_version; pub_version = pub_version; }
+    static void setVersions(uint32_t priv_version, uint32_t pub_version) { priv_version_ = priv_version; pub_version_ = pub_version; }
 
     std::string toString() const;
 
@@ -103,7 +107,21 @@ private:
     uint32_t child_num_;
     bytes_t chain_code_; // 32 bytes
     bytes_t key_;        // 33 bytes, first byte is 0x00 for private key
+
+    bytes_t pubkey_;
+
+    void setPubkey() {
+        if (isPrivate()) {
+            secp256k1_key curvekey;
+            curvekey.setPrivKey(bytes_t(key_.begin() + 1, key_.end()));
+            pubkey_ = curvekey.getPubKey();
+        }
+        else {
+            pubkey_ = key_;
+        }
+    }
 };
+
 
 inline HDKeychain::HDKeychain(unsigned char depth, uint32_t parent_fp, uint32_t child_num, const bytes_t& chain_code, const bytes_t& key)
     : depth_(depth), parent_fp_(parent_fp), child_num_(child_num), chain_code_(chain_code), key_(key)
@@ -124,6 +142,7 @@ inline HDKeychain::HDKeychain(unsigned char depth, uint32_t parent_fp, uint32_t 
     }
 
     version_ = isPrivate() ? priv_version_ : pub_version_;
+    setPubkey();
 }
 
 inline HDKeychain::HDKeychain(const bytes_t& extkey)
@@ -138,6 +157,8 @@ inline HDKeychain::HDKeychain(const bytes_t& extkey)
     child_num_ = ((uint32_t)extkey[9] << 24) | ((uint32_t)extkey[10] << 16) | ((uint32_t)extkey[11] << 8) | (uint32_t)extkey[12];
     chain_code_.assign(extkey.begin() + 13, extkey.begin() + 45);
     key_.assign(extkey.begin() + 45, extkey.begin() + 78);
+
+    setPubkey();
 }
 
 inline bytes_t HDKeychain::extkey() const
@@ -169,24 +190,23 @@ inline bytes_t HDKeychain::extkey() const
 
 inline bytes_t HDKeychain::hash() const
 {
-    bytes_t pubkey;
-
-    if (isPrivate()) {
-        secp256k1_key curvekey;
-        curvekey.setPrivKey(bytes_t(key_.begin() + 1, key_.end()));
-        pubkey = curvekey.getPubKey();
-    }
-    else {
-        pubkey = key_;
-    }
-
-    return ripemd160(sha256(pubkey));
+    return ripemd160(sha256(pubkey_));
 }
 
 inline uint32_t HDKeychain::fp() const
 {
     bytes_t hash = this->hash();
     return (uint32_t)hash[0] << 24 | (uint32_t)hash[1] << 16 | (uint32_t)hash[2] << 8 | (uint32_t)hash[3];
+}
+
+inline void HDKeychain::getPublic(HDKeychain& pub) const
+{
+    pub.version_ = pub_version_;
+    pub.depth_ = depth_;
+    pub.parent_fp_ = parent_fp_;
+    pub.child_num_ = child_num_;
+    pub.chain_code_ = chain_code_;
+    pub.key_ = pubkey_;
 }
 
 inline bool HDKeychain::getChild(HDKeychain& child, uint32_t i) const
@@ -216,7 +236,8 @@ inline bool HDKeychain::getChild(HDKeychain& child, uint32_t i) const
         child.key_ = k.getBytes();
     }
     else {
-        secp256k1_point K(key_);
+        secp256k1_point K;
+        K.bytes(key_);
         K.generator_mul(left32);
         if (K.is_at_infinity()) return false;
         child.key_ = K.bytes();
@@ -239,7 +260,8 @@ inline std::string HDKeychain::toString() const
        << "parent_fp: " << parent_fp_ << std::endl
        << "child_num: " << child_num_ << std::endl
        << "chain_code: " << uchar_vector(chain_code_).getHex() << std::endl
-       << "key: " << uchar_vector(key_).getHex() << std::endl;
+       << "key: " << uchar_vector(key_).getHex() << std::endl
+       << "hash: " << uchar_vector(this->hash()).getHex() << std::endl;
     return ss.str();
 }
 
