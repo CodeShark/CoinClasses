@@ -299,6 +299,10 @@ protected:
     {
         std::string err;
 
+        group = NULL;
+        point = NULL;
+        ctx   = NULL;
+
         group = EC_GROUP_new_by_curve_name(NID_secp256k1);
         if (!group) {
             err = "EC_KEY_new_by_curve_name failed.";
