@@ -187,7 +187,7 @@ inline HDKeychain::HDKeychain(HDKeychain&& source)
 
 inline bytes_t HDKeychain::extkey() const
 {
-    uchar_vector extkey(78);
+    uchar_vector extkey;
 
     extkey.push_back((uint32_t)version_ >> 24);
     extkey.push_back(((uint32_t)version_ >> 16) & 0xff);
@@ -240,16 +240,17 @@ inline HDKeychain HDKeychain::getPublic() const
 
 inline HDKeychain HDKeychain::getChild(uint32_t i) const
 {
+    bool priv_derivation = 0x80000000 & i;
+    if (!isPrivate() && priv_derivation) {
+        throw std::runtime_error("Cannot do private key derivation on public key.");
+    }
+
     HDKeychain child;
     child.valid_ = valid_;
     if (!child.valid_) return child;
 
-    if (!isPrivate() && (0x80000000 & i)) {
-        throw std::runtime_error("Cannot do private key derivation on public key.");
-    }
-
-    uchar_vector data(37);
-    data += key_;
+    uchar_vector data;
+    data += priv_derivation ? key_ : pubkey_;
     data.push_back(i >> 24);
     data.push_back((i >> 16) & 0xff);
     data.push_back((i  >> 8) & 0xff);

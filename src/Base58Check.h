@@ -71,9 +71,8 @@ inline std::string toBase58Check(const std::vector<unsigned char>& payload, cons
     data += checksum;                                               // append checksum
     BigInt bn(data);
     std::string base58check = bn.getInBase(58, _base58chars);             // convert to base58
-//    std::string leading0s(countLeading0s(data), _base58chars[0]);         // prepend leading 0's (1 in base58)
-//    return leading0s + base58check;
-    return base58check;
+    std::string leading0s(countLeading0s(data), _base58chars[0]);         // prepend leading 0's (1 in base58)
+    return leading0s + base58check;
 }
 
 // fromBase58Check() - gets payload and version from a base58check string.
