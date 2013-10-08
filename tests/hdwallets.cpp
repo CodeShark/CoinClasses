@@ -1,7 +1,8 @@
 #include <iostream>
-#include <string.h>
+#include <cassert>
 
 #include "../src/hdwallet.h"
+#include "../src/Base58Check.h"
 
 using namespace Coin;
 using namespace std;
@@ -37,21 +38,28 @@ int main()
 
         stringstream chainname;
         chainname << "Chain m";
+
         HDKeychain prv(0, 0, 0, c, k);
         HDKeychain pub = prv.getPublic();
         showStep(chainname.str(), pub, prv);
 
-        //for (unsigned int k = 0; k < CHAIN_LENGTH; k++) {
-        chainname << "/0'";
-            prv = prv.getChild(0x80000000);
-            pub = prv.getPublic();
-            showStep(chainname.str(), pub, prv);
+        HDKeychain oldpub;
 
-        chainname << "/1";
-        HDKeychain pub_ = pub.getChild(0x00000001);
-        prv = prv.getChild(0x00000001);
-        pub = prv.getPublic();
-        showStep(chainname.str(), pub, prv);
+        for (unsigned int k = 0; k < CHAIN_LENGTH; k++) {
+            chainname << "/" << (CHAIN[k] & 0x7fffffff);
+            if (CHAIN[k] & 0x80000000) {
+                chainname << "'";
+            }
+            else {
+                oldpub = pub;
+            }
+
+            prv = prv.getChild(CHAIN[k]);
+            pub = prv.getPublic();
+            if (!(CHAIN[k] & 0x80000000)) assert(pub.extkey() == oldpub.getChild(CHAIN[k]).extkey());
+            showStep(chainname.str(), pub, prv);
+        }
+
         return 0;
     }
     catch (const std::exception& e) {
