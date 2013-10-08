@@ -177,6 +177,12 @@ public:
         if (!EC_POINT_copy(point, source.point)) throw std::runtime_error("secp256k1_point::secp256k1_point(const secp256k1_point&) - EC_POINT_copy failed.");
     }
 
+    secp256k1_point(const bytes_t& bytes)
+    {
+        init();
+        this->bytes(bytes);
+    }
+
     ~secp256k1_point()
     {
         if (point) EC_POINT_free(point);
@@ -190,7 +196,7 @@ public:
         if (!EC_POINT_copy(point, rhs.point)) throw std::runtime_error("secp256k1_point::operator= - EC_POINT_copy failed.");
     }
 
-    void set(const bytes_t& bytes)
+    void bytes(const bytes_t& bytes)
     {
         std::string err;
 
@@ -216,7 +222,7 @@ public:
         }
     }
 
-    bytes_t get()
+    bytes_t bytes() const
     {
         bytes_t bytes(33);
 
@@ -273,6 +279,20 @@ public:
 
     const secp256k1_point operator+(const secp256k1_point& rhs) const { return secp256k1_point(*this) += rhs; }
     const secp256k1_point operator*(const bytes_t& rhs) const { return secp256k1_point(*this) *= rhs; }
+
+    // Computes n*G + K where K is this and G is the group generator
+    void generator_mul(const bytes_t& n)
+    {
+        BIGNUM* bn = BN_bin2bn(&n[0], n.size(), NULL);
+        if (!bn) throw std::runtime_error("secp256k1_point::generator_mul  - BN_bin2bn failed."); 
+
+        int rval = EC_POINT_mul(group, point, bn, point, BN_value_one(), ctx);
+        BN_clear_free(bn);
+
+        if (rval == 0) throw std::runtime_error("secp256k1_point::generator_mul - EC_POINT_mul failed.");
+    }
+
+    bool is_at_infinity() const { return EC_POINT_is_at_infinity(group, point); }
 
 protected:
     void init()

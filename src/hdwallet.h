@@ -36,9 +36,9 @@
 
 #include <stdexcept>
 
-namespace Coin {
+#include "typedefs.h"
 
-typedef std::vector<unsigned char> bytes_t;
+namespace Coin {
 
 const BigInt CURVE_MODULUS("FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEFFFFFC2F");
 
@@ -69,7 +69,7 @@ inline HDSeed::HDSeed(const bytes_t& seed)
 class HDKeychain
 {
 public:
-    HDKeychain(uint32_t version, unsigned char depth, uint32_t parent_fp, uint32_t child_num, const bytes_t& chain_code, const bytes_t& key);
+    HDKeychain(unsigned char depth, uint32_t parent_fp, uint32_t child_num, const bytes_t& chain_code, const bytes_t& key);
     HDKeychain(const bytes_t& extkey);
 
     bytes_t extkey() const;
@@ -80,11 +80,20 @@ public:
     uint32_t child_num() const { return child_num_; }
     const bytes_t& chain_code() const { return chain_code_; }
     const bytes_t& key() const { return key_; }
-    bool isPrivate() const { return (key_[0] == 0x00); }
 
-    bool getChild(uint32_t i, HDKeychain& child) const;
+    bool isPrivate() const { return (key_[0] == 0x00); }
+    bytes_t hash() const; // hash is ripemd160(sha256(pubkey))
+    uint32_t fp() const; // fingerprint is first 32 bits of hash
+
+    void getPublic(HDKeychain& pub) const;
+    bool getChild(HDKeychain& child, uint32_t i) const;
+
+    static void setVersions(uint32_t priv_version, uint32_t pub_version) { priv_version_ = priv_version; pub_version = pub_version; }
 
 private:
+    static uint32_t priv_version_;
+    static uint32_t pub_version_; 
+
     uint32_t version_;
     unsigned char depth_;
     uint32_t parent_fp_;
@@ -93,17 +102,25 @@ private:
     bytes_t key_;        // 33 bytes, first byte is 0x00 for private key
 };
 
-inline HDKeychain::HDKeychain(uint32_t version, unsigned char depth, uint32_t parent_fp, uint32_t child_num, const bytes_t& chain_code, const bytes_t& key)
-    : version_(version), depth_(depth), parent_fp_(parent_fp), child_num_(child_num), chain_code_(chain_code), key_(key)
+inline HDKeychain::HDKeychain(unsigned char depth, uint32_t parent_fp, uint32_t child_num, const bytes_t& chain_code, const bytes_t& key)
+    : depth_(depth), parent_fp_(parent_fp), child_num_(child_num), chain_code_(chain_code), key_(key)
 {
     if (chain_code_.size() != 32) {
         throw std::runtime_error("Invalid chain code.");
     }
 
     // TODO: make sure key < prime modulus of secp256k1 field
+    if (key_.size() == 32) {
+        uchar_vector privkey;
+        privkey.push_back(0x00);
+        privkey += key_;
+        key_ = privkey;
+    }
     if (key_.size() != 33) {
         throw std::runtime_error("Invalid key.");
     }
+
+    version_ = isPrivate() ? priv_version_ : pub_version_;
 }
 
 inline HDKeychain::HDKeychain(const bytes_t& extkey)
@@ -147,7 +164,29 @@ inline bytes_t HDKeychain::extkey() const
     return extkey;
 }
 
-bool HDKeychain::getChild(uint32_t i, HDKeychain& child) const
+inline bytes_t HDKeychain::hash() const
+{
+    bytes_t pubkey;
+
+    if (isPrivate()) {
+        secp256k1_key curvekey;
+        curvekey.setPrivKey(bytes_t(key_.begin() + 1, key_.end()));
+        pubkey = curvekey.getPubKey();
+    }
+    else {
+        pubkey = key_;
+    }
+
+    return ripemd160(sha256(pubkey));
+}
+
+inline uint32_t HDKeychain::fp() const
+{
+    bytes_t hash = this->hash();
+    return (uint32_t)hash[0] << 24 | (uint32_t)hash[1] << 16 | (uint32_t)hash[2] << 8 | (uint32_t)hash[3];
+}
+
+inline bool HDKeychain::getChild(HDKeychain& child, uint32_t i) const
 {
     if (!isPrivate() && (0x80000000 & i)) {
         throw std::runtime_error("Cannot do private key derivation on public key.");
@@ -171,13 +210,26 @@ bool HDKeychain::getChild(uint32_t i, HDKeychain& child) const
         k += Il;
         k %= CURVE_MODULUS;
         if (k.isZero()) return false;
-        child_key = k.getBytes();
+        child.key_ = k.getBytes();
     }
     else {
+        secp256k1_point K(key_);
+        K.generator_mul(left32);
+        if (K.is_at_infinity()) return false;
+        child.key_ = K.bytes();
     }
 
-    bytes_t right32(digest.begin() + 32, digest.end() + 64);
+    child.version_ = version_; 
+    child.depth_ = depth_ + 1;
+    child.parent_fp_ = fp();
+    child.child_num_ = i;
+    child.chain_code_.assign(digest.begin() + 32, digest.end());
+
+    return true;
 }
+
+uint32_t HDKeychain::priv_version_ = 0;
+uint32_t HDKeychain::pub_version_ = 0;
 
 }
 
