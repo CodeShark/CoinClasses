@@ -116,7 +116,7 @@ private:
 
     bool valid_;
 
-    void setPubkey() {
+    void updatePubkey() {
         if (isPrivate()) {
             secp256k1_key curvekey;
             curvekey.setPrivKey(bytes_t(key_.begin() + 1, key_.end()));
@@ -148,7 +148,7 @@ inline HDKeychain::HDKeychain(unsigned char depth, uint32_t parent_fp, uint32_t 
     }
 
     version_ = isPrivate() ? priv_version_ : pub_version_;
-    setPubkey();
+    updatePubkey();
 
     valid_ = true;
 }
@@ -166,7 +166,7 @@ inline HDKeychain::HDKeychain(const bytes_t& extkey)
     chain_code_.assign(extkey.begin() + 13, extkey.begin() + 45);
     key_.assign(extkey.begin() + 45, extkey.begin() + 78);
 
-    setPubkey();
+    updatePubkey();
 
     valid_ = true;
 }
@@ -182,7 +182,7 @@ inline HDKeychain::HDKeychain(HDKeychain&& source)
     child_num_ = source.child_num_;
     chain_code_ = source.chain_code_;
     key_ = source.key_;
-    setPubkey();
+    updatePubkey();
 }
 
 inline bytes_t HDKeychain::extkey() const
@@ -233,7 +233,7 @@ inline HDKeychain HDKeychain::getPublic() const
         pub.parent_fp_ = parent_fp_;
         pub.child_num_ = child_num_;
         pub.chain_code_ = chain_code_;
-        pub.key_ = pubkey_;
+        pub.key_ = pub.pubkey_ = pubkey_;
     }
     return pub;
 }
@@ -270,6 +270,7 @@ inline HDKeychain HDKeychain::getChild(uint32_t i) const
         child_key.push_back(0x00);
         child_key += k.getBytes(); 
         child.key_ = child_key;
+        child.updatePubkey();
     }
     else {
         secp256k1_point K;
@@ -277,7 +278,7 @@ inline HDKeychain HDKeychain::getChild(uint32_t i) const
         K.generator_mul(left32);
         if (K.is_at_infinity()) return child;
 
-        child.key_ = K.bytes();
+        child.key_ = child.pubkey_ = K.bytes();
     }
 
     child.version_ = version_; 

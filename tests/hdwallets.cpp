@@ -6,6 +6,7 @@
 const uchar_vector parent_fingerprint("00000000");
 
 using namespace Coin;
+using namespace std;
 
 void show(const HDKeychain& keychain, bool showfields = false)
 {
@@ -29,12 +30,14 @@ int main()
 
         HDKeychain priv0(0, 0, 0, c, k);
         HDKeychain pub0 = priv0.getPublic();
+        if (!pub0) cout << "pub0 is not valid" << endl;
         show(pub0);
         show(priv0);
-        std::cout << "-----------------------------------" << std::endl;
+        cout << "-----------------------------------" << endl;
 
         HDKeychain priv1 = priv0.getChild(0);
         HDKeychain pub1 = priv1.getPublic();
+        if (!pub1) cout << "pub1 is not valid" << endl;
         HDKeychain pub1_ = pub1.getPublic();
         show(priv1);
         show(pub1);
