@@ -27,25 +27,18 @@ int main()
         bytes_t c = hdSeed.getMasterChainCode();
 
 
-        HDKeychain keychain1(0, 0, 0, c, k);
-        HDKeychain keychain2(keychain1, true);
-        show(keychain2);
-        show(keychain1); 
+        HDKeychain priv0(0, 0, 0, c, k);
+        HDKeychain pub0 = priv0.getPublic();
+        show(pub0);
+        show(priv0);
+        std::cout << "-----------------------------------" << std::endl;
 
-        std::cout << "----------------------------------" << std::endl;
-
-        HDKeychain keychain3;
-        if (!keychain1.getChild(keychain3, 0)) {
-            throw std::runtime_error("Derivation for i = 0 failed.");
-        }
-
-        HDKeychain keychain4;
-        if (!keychain2.getChild(keychain4, 0)) {
-            throw std::runtime_error("Derivation for i = 0 failed.");
-        }
-        
-        show(keychain3);
-        show(keychain4);
+        HDKeychain priv1 = priv0.getChild(0);
+        HDKeychain pub1 = priv1.getPublic();
+        HDKeychain pub1_ = pub1.getPublic();
+        show(priv1);
+        show(pub1);
+        show(pub1_);
 
         return 0;
     }
