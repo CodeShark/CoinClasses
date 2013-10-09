@@ -1,7 +1,7 @@
 #include <iostream>
 #include <cassert>
 
-#include "../src/hdwallet.h"
+#include "../src/hdkeys.h"
 #include "../src/Base58Check.h"
 
 using namespace Coin;
