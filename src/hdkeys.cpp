@@ -1,6 +1,6 @@
 ////////////////////////////////////////////////////////////////////////////////
 //
-// hdwallet.h
+// hdkeys.cpp
 //
 // Copyright (c) 2013 Eric Lombrozo
 //
@@ -22,14 +22,10 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
 //
-// Some portions taken from bitcoin/bitcoin,
-//      Copyright (c) 2009-2013 Satoshi Nakamoto, the Bitcoin developers
 
-#ifndef __HDWALLET_H_
-#define __HDWALLET_H_
+#include "hdkeys.h"
 
 #include "hash.h"
-#include "Base58Check.h"
 #include "secp256k1.h"
 #include "BigInt.h"
 #include "uchar_vector.h"
@@ -39,96 +35,13 @@
 
 #include "typedefs.h"
 
-namespace Coin {
+using namespace Coin;
 
 const uchar_vector CURVE_ORDER_BYTES("FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEBAAEDCE6AF48A03BBFD25E8CD0364141");
 const BigInt CURVE_ORDER(CURVE_ORDER_BYTES);
 
-const uchar_vector BITCOIN_SEED("426974636f696e2073656564"); // key = "Bitcoin seed"
 
-class HDSeed
-{
-public:
-    HDSeed(const bytes_t& seed);
-
-    const bytes_t& getSeed() const { return seed_; }
-    const bytes_t& getMasterKey() const { return master_key_; }
-    const bytes_t& getMasterChainCode() const { return master_chain_code_; }
-
-private:
-    bytes_t seed_;
-    bytes_t master_key_;
-    bytes_t master_chain_code_;
-};
-
-inline HDSeed::HDSeed(const bytes_t& seed)
-{
-    bytes_t hmac = hmac_sha512(BITCOIN_SEED, seed);
-    master_key_.assign(hmac.begin(), hmac.begin() + 32);
-    master_chain_code_.assign(hmac.begin() + 32, hmac.end());
-}
-
-class HDKeychain
-{
-public:
-    HDKeychain() { }
-    HDKeychain(const bytes_t& key, const bytes_t& chain_code, uint32_t child_num = 0, uint32_t parent_fp = 0, uint32_t depth = 0);
-    HDKeychain(const bytes_t& extkey);
-
-    HDKeychain(HDKeychain&& source);
-
-    explicit operator bool() { return valid_; }
-
-    bytes_t extkey() const;
-
-    uint32_t version() const { return version_; }
-    int depth() const { return depth_; }
-    uint32_t parent_fp() const { return parent_fp_; }
-    uint32_t child_num() const { return child_num_; }
-    const bytes_t& chain_code() const { return chain_code_; }
-    const bytes_t& key() const { return key_; }
-
-    const bytes_t& pubkey() const { return pubkey_; }
-
-    bool isPrivate() const { return ( key_.size() == 33 && key_[0] == 0x00); }
-    bytes_t hash() const; // hash is ripemd160(sha256(pubkey))
-    uint32_t fp() const; // fingerprint is first 32 bits of hash
-
-    HDKeychain getPublic() const;
-    HDKeychain getChild(uint32_t i) const;
-
-    static void setVersions(uint32_t priv_version, uint32_t pub_version) { priv_version_ = priv_version; pub_version_ = pub_version; }
-
-    std::string toString() const;
-
-private:
-    static uint32_t priv_version_;
-    static uint32_t pub_version_; 
-
-    uint32_t version_;
-    unsigned char depth_;
-    uint32_t parent_fp_;
-    uint32_t child_num_;
-    bytes_t chain_code_; // 32 bytes
-    bytes_t key_;        // 33 bytes, first byte is 0x00 for private key
-
-    bytes_t pubkey_;
-
-    bool valid_;
-
-    void updatePubkey() {
-        if (isPrivate()) {
-            secp256k1_key curvekey;
-            curvekey.setPrivKey(bytes_t(key_.begin() + 1, key_.end()));
-            pubkey_ = curvekey.getPubKey();
-        }
-        else {
-            pubkey_ = key_;
-        }
-    }
-};
-
-inline HDKeychain::HDKeychain(const bytes_t& key, const bytes_t& chain_code, uint32_t child_num, uint32_t parent_fp, uint32_t depth)
+HDKeychain::HDKeychain(const bytes_t& key, const bytes_t& chain_code, uint32_t child_num, uint32_t parent_fp, uint32_t depth)
     : depth_(depth), parent_fp_(parent_fp), child_num_(child_num), chain_code_(chain_code), key_(key)
 {
     if (chain_code_.size() != 32) {
@@ -156,7 +69,7 @@ inline HDKeychain::HDKeychain(const bytes_t& key, const bytes_t& chain_code, uin
     valid_ = true;
 }
 
-inline HDKeychain::HDKeychain(const bytes_t& extkey)
+HDKeychain::HDKeychain(const bytes_t& extkey)
 {
     if (extkey.size() != 78) {
         throw std::runtime_error("Invalid extended key length.");
@@ -174,7 +87,7 @@ inline HDKeychain::HDKeychain(const bytes_t& extkey)
     valid_ = true;
 }
 
-inline HDKeychain::HDKeychain(HDKeychain&& source)
+HDKeychain::HDKeychain(HDKeychain&& source)
 {
     valid_ = source.valid_;
     if (!valid_) return;
@@ -188,7 +101,7 @@ inline HDKeychain::HDKeychain(HDKeychain&& source)
     updatePubkey();
 }
 
-inline bytes_t HDKeychain::extkey() const
+bytes_t HDKeychain::extkey() const
 {
     uchar_vector extkey;
 
@@ -215,18 +128,18 @@ inline bytes_t HDKeychain::extkey() const
     return extkey;
 }
 
-inline bytes_t HDKeychain::hash() const
+bytes_t HDKeychain::hash() const
 {
     return ripemd160(sha256(pubkey_));
 }
 
-inline uint32_t HDKeychain::fp() const
+uint32_t HDKeychain::fp() const
 {
     bytes_t hash = this->hash();
     return (uint32_t)hash[0] << 24 | (uint32_t)hash[1] << 16 | (uint32_t)hash[2] << 8 | (uint32_t)hash[3];
 }
 
-inline HDKeychain HDKeychain::getPublic() const
+HDKeychain HDKeychain::getPublic() const
 {
     if (!valid_) {
         throw std::runtime_error("Keychain is invalid.");
@@ -243,7 +156,7 @@ inline HDKeychain HDKeychain::getPublic() const
     return pub;
 }
 
-inline HDKeychain HDKeychain::getChild(uint32_t i) const
+HDKeychain HDKeychain::getChild(uint32_t i) const
 {
     if (!valid_) {
         throw std::runtime_error("Keychain is invalid.");
@@ -301,7 +214,7 @@ inline HDKeychain HDKeychain::getChild(uint32_t i) const
     return child;
 }
 
-inline std::string HDKeychain::toString() const
+std::string HDKeychain::toString() const
 {
     std::stringstream ss;
     ss << "version: " << std::hex << version_ << std::endl
@@ -314,9 +227,16 @@ inline std::string HDKeychain::toString() const
     return ss.str();
 }
 
-uint32_t HDKeychain::priv_version_ = 0;
-uint32_t HDKeychain::pub_version_ = 0;
-
+void HDKeychain::updatePubkey() {
+    if (isPrivate()) {
+        secp256k1_key curvekey;
+        curvekey.setPrivKey(bytes_t(key_.begin() + 1, key_.end()));
+        pubkey_ = curvekey.getPubKey();
+    }
+    else {
+        pubkey_ = key_;
+    }
 }
 
-#endif // __HDWALLET_H_1
+uint32_t HDKeychain::priv_version_ = 0;
+uint32_t HDKeychain::pub_version_ = 0;
