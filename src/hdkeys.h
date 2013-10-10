@@ -64,6 +64,8 @@ public:
 
     HDKeychain(HDKeychain&& source);
 
+    HDKeychain& operator=(const HDKeychain& rhs);    
+
     explicit operator bool() { return valid_; }
 
     bytes_t extkey() const;

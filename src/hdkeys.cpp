@@ -101,6 +101,21 @@ HDKeychain::HDKeychain(HDKeychain&& source)
     updatePubkey();
 }
 
+HDKeychain& HDKeychain::operator=(const HDKeychain& rhs)
+{
+    valid_ = rhs.valid_;
+    if (valid_) {
+        version_ = rhs.version_;
+        depth_ = rhs.depth_;
+        parent_fp_ = rhs.parent_fp_;
+        child_num_ = rhs.child_num_;
+        chain_code_ = rhs.chain_code_;
+        key_ = rhs.key_;
+        updatePubkey();
+    }
+    return *this;
+}
+
 bytes_t HDKeychain::extkey() const
 {
     uchar_vector extkey;
