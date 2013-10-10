@@ -9,7 +9,16 @@
 using namespace Coin;
 using namespace std;
 
-#define P(i) 0x80000000 | i
+#define P(i)        0x80000000 | i
+#define IS_P(i)     0x80000000 & i
+
+string S(uint32_t i)
+{
+    stringstream ss;
+    ss << (0x7fffffff & i);
+    if (IS_P(i)) { ss << "'"; }
+    return ss.str();
+}
 
 /*
 const uchar_vector SEED("000102030405060708090a0b0c0d0e0f");
@@ -49,24 +58,30 @@ int main()
         stringstream chainname;
         chainname << "Chain m";
 
+        // Create master keychain
         HDKeychain prv(k, c);
         HDKeychain pub = prv.getPublic();
         showStep(chainname.str(), pub, prv);
 
-        HDKeychain oldpub;
+        HDKeychain parentpub;
 
         for (unsigned int k = 0; k < CHAIN_LENGTH; k++) {
-            chainname << "/" << (CHAIN[k] & 0x7fffffff);
-            if (CHAIN[k] & 0x80000000) {
-                chainname << "'";
-            }
-            else {
-                oldpub = pub;
-            }
+            // Append subtree label to name
+            chainname << "/" << S(CHAIN[k]);
 
-            prv = prv.getChild(CHAIN[k]); assert(prv);
-            pub = prv.getPublic(); assert(pub);
-            if (!(CHAIN[k] & 0x80000000)) assert(pub.extkey() == oldpub.getChild(CHAIN[k]).extkey());
+            if (!IS_P(CHAIN[k]))
+                parentpub = pub;
+
+            prv = prv.getChild(CHAIN[k]);
+            assert(prv);
+
+            pub = prv.getPublic();
+            assert(pub);
+
+            // We need to make sure child of pub = pub of child for public derivation 
+            if (!IS_P(CHAIN[k]))
+                assert(pub.extkey() == parentpub.getChild(CHAIN[k]).extkey());
+
             showStep(chainname.str(), pub, prv);
         }
 
