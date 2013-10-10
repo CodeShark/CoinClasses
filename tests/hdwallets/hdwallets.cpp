@@ -9,14 +9,14 @@
 using namespace Coin;
 using namespace std;
 
-#define P(i)        0x80000000 | i
-#define IS_P(i)     0x80000000 & i
+inline uint32_t P(uint32_t i)       { return 0x80000000 | i; }
+inline bool     isP(uint32_t i)     { return 0x80000000 & i; }
 
 string S(uint32_t i)
 {
     stringstream ss;
     ss << (0x7fffffff & i);
-    if (IS_P(i)) { ss << "'"; }
+    if (isP(i)) { ss << "'"; }
     return ss.str();
 }
 
@@ -69,9 +69,10 @@ int main()
             // Append subtree label to name
             chainname << "/" << S(CHAIN[k]);
 
-            if (!IS_P(CHAIN[k]))
+            if (!isP(CHAIN[k]))
                 parentpub = pub;
 
+            // Get child private and public keychains
             prv = prv.getChild(CHAIN[k]);
             assert(prv);
 
@@ -79,16 +80,16 @@ int main()
             assert(pub);
 
             // We need to make sure child of pub = pub of child for public derivation 
-            if (!IS_P(CHAIN[k]))
-                assert(pub.extkey() == parentpub.getChild(CHAIN[k]).extkey());
+            if (!isP(CHAIN[k]))
+                assert(pub == parentpub.getChild(CHAIN[k]));
 
             showStep(chainname.str(), pub, prv);
         }
 
         return 0;
     }
-    catch (const std::exception& e) {
-        std::cout << "Error: " << e.what() << std::endl;
+    catch (const exception& e) {
+        cout << "Error: " << e.what() << endl;
     } 
     return 1;
 }

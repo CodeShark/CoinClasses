@@ -116,6 +116,22 @@ HDKeychain& HDKeychain::operator=(const HDKeychain& rhs)
     return *this;
 }
 
+bool HDKeychain::operator==(const HDKeychain& rhs) const
+{
+    return (valid_ && rhs.valid_ &&
+            version_ == rhs.version_ &&
+            depth_ == rhs.depth_ &&
+            parent_fp_ == rhs.parent_fp_ &&
+            child_num_ == rhs.child_num_ &&
+            chain_code_ == rhs.chain_code_ &&
+            key_ == rhs.key_);
+}
+
+bool HDKeychain::operator!=(const HDKeychain& rhs) const
+{
+    return !(*this == rhs);
+}
+
 bytes_t HDKeychain::extkey() const
 {
     uchar_vector extkey;

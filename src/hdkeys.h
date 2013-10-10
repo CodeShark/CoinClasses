@@ -61,15 +61,20 @@ public:
     HDKeychain() { }
     HDKeychain(const bytes_t& key, const bytes_t& chain_code, uint32_t child_num = 0, uint32_t parent_fp = 0, uint32_t depth = 0);
     HDKeychain(const bytes_t& extkey);
-
     HDKeychain(HDKeychain&& source);
 
     HDKeychain& operator=(const HDKeychain& rhs);    
 
-    explicit operator bool() { return valid_; }
+    explicit operator bool() const { return valid_; }
 
+
+    bool operator==(const HDKeychain& rhs) const;
+    bool operator!=(const HDKeychain& rhs) const;
+
+    // Serialization
     bytes_t extkey() const;
 
+    // Accessor Methods
     uint32_t version() const { return version_; }
     int depth() const { return depth_; }
     uint32_t parent_fp() const { return parent_fp_; }
