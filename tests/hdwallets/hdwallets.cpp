@@ -64,8 +64,8 @@ int main()
                 oldpub = pub;
             }
 
-            prv = prv.getChild(CHAIN[k]);
-            pub = prv.getPublic();
+            prv = prv.getChild(CHAIN[k]); assert(prv);
+            pub = prv.getPublic(); assert(pub);
             if (!(CHAIN[k] & 0x80000000)) assert(pub.extkey() == oldpub.getChild(CHAIN[k]).extkey());
             showStep(chainname.str(), pub, prv);
         }
