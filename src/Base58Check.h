@@ -29,8 +29,7 @@
 #include "BigInt.h"
 #include "hash.h"
 
-#define BITCOIN_BASE58_CHARS "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz"
-#define RIPPLE_BASE58_CHARS  "rpshnaf39wBUDNEGHJKLM4PQRST7VWXYZ2bcdeCg65jkm8oFqi1tuvAxyz"
+#include "encodings.h"
 
 // unsecure versions, suitable for public keys
 inline unsigned int countLeading0s(const std::vector<unsigned char>& data)
@@ -47,7 +46,7 @@ inline unsigned int countLeading0s(const std::string& numeral, char zeroSymbol)
     return i;
 }
 
-inline std::string toBase58Check(const std::vector<unsigned char>& payload, unsigned char version, const char* _base58chars = BITCOIN_BASE58_CHARS)
+inline std::string toBase58Check(const std::vector<unsigned char>& payload, unsigned char version, const char* _base58chars = DEFAULT_BASE58_CHARS)
 {
     uchar_vector data;
     data.push_back(version);                                        // prepend version byte
@@ -61,7 +60,7 @@ inline std::string toBase58Check(const std::vector<unsigned char>& payload, unsi
     return leading0s + base58check;
 }
 
-inline std::string toBase58Check(const std::vector<unsigned char>& payload, const std::vector<unsigned char>& version = std::vector<unsigned char>(), const char* _base58chars = BITCOIN_BASE58_CHARS)
+inline std::string toBase58Check(const std::vector<unsigned char>& payload, const std::vector<unsigned char>& version = std::vector<unsigned char>(), const char* _base58chars = DEFAULT_BASE58_CHARS)
 {
     uchar_vector data;
     data += version;                                            // prepend version byte
@@ -78,7 +77,7 @@ inline std::string toBase58Check(const std::vector<unsigned char>& payload, cons
 // fromBase58Check() - gets payload and version from a base58check string.
 //    returns true if valid.
 //    returns false and does not modify parameters if invalid.
-inline bool fromBase58Check(const std::string& base58check, std::vector<unsigned char>& payload, unsigned int& version, const char* _base58chars = BITCOIN_BASE58_CHARS)
+inline bool fromBase58Check(const std::string& base58check, std::vector<unsigned char>& payload, unsigned int& version, const char* _base58chars = DEFAULT_BASE58_CHARS)
 {
     BigInt bn(base58check, 58, _base58chars);                                // convert from base58
     uchar_vector bytes = bn.getBytes();
@@ -95,7 +94,7 @@ inline bool fromBase58Check(const std::string& base58check, std::vector<unsigned
     return true;
 }
 
-inline bool isBase58CheckValid(const std::string& base58check, const char* _base58chars = BITCOIN_BASE58_CHARS)
+inline bool isBase58CheckValid(const std::string& base58check, const char* _base58chars = DEFAULT_BASE58_CHARS)
 {
     BigInt bn(base58check, 58, _base58chars);                                // convert from base58
     uchar_vector bytes = bn.getBytes();
