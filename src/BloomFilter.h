@@ -36,6 +36,7 @@ static const unsigned int MAX_BLOOM_FILTER_HASH_FUNCS = 50;
 class BloomFilter
 {
 private:
+    bool bSet;
     uchar_vector filter;
     bool bFull, bEmpty;
     uint32_t nHashFuncs;
@@ -45,7 +46,11 @@ private:
     uint32_t hash(uint n, const uchar_vector& data) const;
 
 public:
+    BloomFilter() : bSet(false) { }
     BloomFilter(uint32_t nElements, double falsePositiveRate, uint32_t _nTweak, uint8_t _nFlags);
+
+    void set(uint32_t nElements, double falsePositiveRate, uint32_t _nTweak, uint8_t _nFlags);
+    bool isSet() const { return bSet; }
 
     void insert(const uchar_vector& data);
     bool match(const uchar_vector& data) const;

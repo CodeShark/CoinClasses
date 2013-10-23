@@ -96,8 +96,8 @@ inline uint32_t BloomFilter::hash(uint n, const uchar_vector& data) const
     return murmurHash3(n * 0xfba4c795 + nTweak, data) % (filter.size() * 8);
 }
 
-
 BloomFilter::BloomFilter(uint32_t nElements, double falsePositiveRate, uint32_t _nTweak, uint8_t _nFlags) :
+    bSet(true),
     filter(std::min((uint)(-1 / LN2SQUARED * nElements * log(falsePositiveRate)), MAX_BLOOM_FILTER_SIZE * 8) / 8, 0),
     bFull(false),
     bEmpty(false),
@@ -105,6 +105,17 @@ BloomFilter::BloomFilter(uint32_t nElements, double falsePositiveRate, uint32_t 
     nTweak(_nTweak),
     nFlags(_nFlags)
 {
+}
+
+void BloomFilter::set(uint32_t nElements, double falsePositiveRate, uint32_t _nTweak, uint8_t _nFlags)
+{
+    filter = uchar_vector(std::min((uint)(-1 / LN2SQUARED * nElements * log(falsePositiveRate)), MAX_BLOOM_FILTER_SIZE * 8) / 8, 0);
+    bFull = false;
+    bEmpty = false;
+    nHashFuncs = std::min((uint)(filter.size() * 8 / nElements * LN2), MAX_BLOOM_FILTER_HASH_FUNCS);
+    nTweak = _nTweak;
+    nFlags = _nFlags;
+    bSet = true;
 }
 
 void BloomFilter::insert(const uchar_vector& data)
