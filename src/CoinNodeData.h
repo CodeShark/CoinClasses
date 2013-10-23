@@ -785,7 +785,8 @@ public:
     uint32_t nTweak;
     uint8_t nFlags;
 
-    FilterLoadMessage() { }
+    FilterLoadMessage(uint32_t nHashFuncs_ = 0, uint32_t nTweak_ = 0, uint8_t nFlags_ = 0, const uchar_vector& filter_ = uchar_vector())
+        : filter(filter_), nHashFuncs(nHashFuncs_), nTweak(nTweak_), nFlags(nFlags_) { }
     FilterLoadMessage(const uchar_vector& bytes) { setSerialized(bytes); }
 
     const char* getCommand() const { return "filterload"; }
