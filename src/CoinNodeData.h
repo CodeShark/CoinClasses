@@ -375,6 +375,7 @@ public:
     std::string toIndentedString(uint spaces = 0) const;
 
     uint getType() const { return itemType; }
+    uchar_vector getItemHash() const { return uchar_vector(hash, 32); }
 };
 
 class Inventory : public CoinNodeStructure
