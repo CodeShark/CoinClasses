@@ -1749,7 +1749,9 @@ string MerkleBlock::toString() const
     ss << this->blockHeader.toString() << ", nTxs: " << this->nTxs << ", hashes: [";
     for (uint i = 0; i < this->hashes.size(); i++) {
         if (i > 0) ss << ", ";
-        ss << i << ": " << this->hashes[i].getHex();
+        uchar_vector hashLittleEndian(this->hashes[i]);
+        std::reverse(hashLittleEndian.begin(), hashLittleEndian.end());
+        ss << i << ": " << hashLittleEndian.getHex();
     }
     ss << "], flags: " << this->flags.getHex();
     return ss.str();
@@ -1762,7 +1764,9 @@ string MerkleBlock::toIndentedString(uint spaces) const
        << blankSpaces(spaces) << "nTxs: " << this->nTxs << endl
        << blankSpaces(spaces) << "hashes:";
     for (uint i = 0; i < this->hashes.size(); i++) {
-        ss << endl << blankSpaces(spaces + 2) << i << ":" << this->hashes[i].getHex();
+        uchar_vector hashLittleEndian(this->hashes[i]);
+        std::reverse(hashLittleEndian.begin(), hashLittleEndian.end());
+        ss << endl << blankSpaces(spaces + 2) << i << ":" << hashLittleEndian.getHex();
     }
     ss << endl << blankSpaces(spaces) << "flags: " << this->flags.getHex() << endl;
     return ss.str();
