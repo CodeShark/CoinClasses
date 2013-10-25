@@ -145,6 +145,18 @@ uint32_t CoinNodeStructure::getChecksum() const
 
 ///////////////////////////////////////////////////////////////////////////////
 //
+// class PartialMerkleTree implementation
+//
+void PartialMerkleTree::setCompressed(const std::vector<uchar_vector>& hashes, const uchar_vector& flags)
+{
+}
+
+void PartialMerkleTree::setUncompressed(const std::vector<MerkleLeaf>& leaves)
+{
+}
+
+///////////////////////////////////////////////////////////////////////////////
+//
 // class VarInt implementation
 //
 uint64_t VarInt::getSize() const

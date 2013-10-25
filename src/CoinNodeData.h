@@ -108,17 +108,21 @@ public:
 
     PartialMerkleTree() { }
 
-    void setCompressed(const std::vector<uchar_vector>& hashes, const uchar_vector& flags) { }
-    void setUncompressed(const std::vector<MerkleLeaf>& leaves) { }
+    void setCompressed(const std::vector<uchar_vector>& hashes, const uchar_vector& flags);
+    void setUncompressed(const std::vector<MerkleLeaf>& leaves);
 
     const std::vector<uchar_vector>& hashes() const { return hashes_; }
     const uchar_vector& flags() const { return flags_; }
     const std::vector<uchar_vector>& txids() const { return txids_; }
 
+    const uchar_vector& getRoot() const { return root_; }
+    uchar_vector getRootLittleEndian() const { return uchar_vector(root_).getReverse(); }
+
 private:
     std::vector<uchar_vector> hashes_;
     uchar_vector flags_;
     std::vector<uchar_vector> txids_;
+    uchar_vector root_;
 };
 
 class CoinNodeStructure
