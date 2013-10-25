@@ -1641,7 +1641,20 @@ string CoinBlock::toIndentedString(uint spaces) const
     ss << blankSpaces(spaces) << "blockHeader:" << endl << this->blockHeader.toIndentedString(spaces + 2) << endl
        << blankSpaces(spaces) << "txs:";
     for (uint i = 0; i < this->txs.size(); i++) {
-        ss << endl << blankSpaces(spaces + 2) << i << ":" << endl<< this->txs[i].toIndentedString(spaces + 4);
+        ss << endl << blankSpaces(spaces + 2) << i << ":" << endl << this->txs[i].toIndentedString(spaces + 4);
+    }
+    if (height >= 0) ss << endl << blankSpaces(spaces) << "height: " << height;
+    return ss.str();
+}
+
+string CoinBlock::toRedactedIndentedString(uint spaces) const
+{
+    int64_t height = this->getHeight();
+    stringstream ss;
+    ss << blankSpaces(spaces) << "blockHeader:" << endl << this->blockHeader.toIndentedString(spaces + 2) << endl
+       << blankSpaces(spaces) << "txs:";
+    for (uint i = 0; i < this->txs.size(); i++) {
+        ss << endl << blankSpaces(spaces + 2) << i << ":" << this->txs[i].getHashLittleEndian().getHex();
     }
     if (height >= 0) ss << endl << blankSpaces(spaces) << "height: " << height;
     return ss.str();

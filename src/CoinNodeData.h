@@ -699,6 +699,7 @@ public:
 
     std::string toString() const;
     std::string toIndentedString(uint spaces = 0) const;
+    std::string toRedactedIndentedString(uint spaces = 0) const;
 
     void addTransaction(const Transaction& tx) { this->txs.push_back(tx); }
 
