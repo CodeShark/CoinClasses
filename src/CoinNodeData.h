@@ -101,6 +101,26 @@ public:
     uchar_vector getRootLittleEndian() const { return getRoot().getReverse(); }
 };
 
+class PartialMerkleTree
+{
+public:
+    typedef std::pair<uchar_vector, bool> MerkleLeaf;
+
+    PartialMerkleTree() { }
+
+    void setCompressed(const std::vector<uchar_vector>& hashes, const uchar_vector& flags) { }
+    void setUncompressed(const std::vector<MerkleLeaf>& leaves) { }
+
+    const std::vector<uchar_vector>& hashes() const { return hashes_; }
+    const uchar_vector& flags() const { return flags_; }
+    const std::vector<uchar_vector>& txids() const { return txids_; }
+
+private:
+    std::vector<uchar_vector> hashes_;
+    uchar_vector flags_;
+    std::vector<uchar_vector> txids_;
+};
+
 class CoinNodeStructure
 {
 public:
