@@ -107,20 +107,26 @@ public:
     typedef std::pair<uchar_vector, bool> MerkleLeaf;
 
     PartialMerkleTree() { }
+    PartialMerkleTree(const std::vector<uchar_vector>& hashes, const uchar_vector& flags) { setCompressed(hashes, flags); }
+    PartialMerkleTree(const std::vector<MerkleLeaf>& leaves) { setUncompressed(leaves); }
 
     void setCompressed(const std::vector<uchar_vector>& hashes, const uchar_vector& flags);
     void setUncompressed(const std::vector<MerkleLeaf>& leaves);
 
+    unsigned int nTxs() const { return nTxs_; }
+    unsigned int depth() const { return depth_; }
     const std::vector<uchar_vector>& hashes() const { return hashes_; }
-    const uchar_vector& flags() const { return flags_; }
+    uchar_vector flags() const;
     const std::vector<uchar_vector>& txids() const { return txids_; }
 
     const uchar_vector& getRoot() const { return root_; }
     uchar_vector getRootLittleEndian() const { return uchar_vector(root_).getReverse(); }
 
 private:
+    unsigned int nTxs_;
+    unsigned int depth_;
     std::vector<uchar_vector> hashes_;
-    uchar_vector flags_;
+    std::vector<bool> bits_;
     std::vector<uchar_vector> txids_;
     uchar_vector root_;
 };

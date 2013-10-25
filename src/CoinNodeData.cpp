@@ -153,6 +153,53 @@ void PartialMerkleTree::setCompressed(const std::vector<uchar_vector>& hashes, c
 
 void PartialMerkleTree::setUncompressed(const std::vector<MerkleLeaf>& leaves)
 {
+    if (leaves.empty()) {
+        throw std::runtime_error("Leaf vector is empty.");
+    }
+
+    hashes_.clear();
+    txids_.clear();
+    bits_.clear();
+
+    // We've hit a leaf. Store the hash and push a true bit if matched, a false bit if unmatched.
+    if (leaves.size() == 1) {
+        hashes_.push_back(leaves[0].first);
+        if (leaves[0].second) txids_.push_back(leaves[0].first);
+        bits_.push_back(leaves[0].second);
+        return;
+    }
+
+    std::vector<unsigned int> matchedLeafIndices;
+
+    MerkleTree merkleTree;
+    for (unsigned int i = 0; i < leaves.size(); i++) {
+        merkleTree.addNode(leaves[i].first);
+        if (leaves[i].second) matchedLeafIndices.push_back(i);
+    }
+    root_ = merkleTree.getRoot();
+    nTxs_ = leaves.size();
+
+    if (matchedLeafIndices.empty()) {
+        depth_ = 0;
+        hashes_.push_back(root_);
+        flags_.push_back(0x00);
+        return;
+    }
+
+
+    // We are on a path to a matched leaf, so push a true bit and recurse
+    bits_.push_back(true);
+
+/*
+    depth_ = 1;
+    unsigned int n = nTxs_ - 1;
+    while (n > 0) { depth_++; n >> 1; }
+    depth_--; // height_ = ceil(log_2(nTxs_))
+*/
+
+    // Partition the leaves into a set that's a size a power of two and the remaining
+
+    PartialMerkleTree partialMerkleTree(MerkleLeaves(
 }
 
 ///////////////////////////////////////////////////////////////////////////////
