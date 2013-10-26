@@ -218,8 +218,13 @@ void PartialMerkleTree::setUncompressed(const std::vector<MerkleLeaf>& leaves, s
 
     if (txHashes_.empty()) {
         // No matched leaves in subtree, so prepend the root to hashes and a false to bits
+        merkleHashes_.clear();
         merkleHashes_.push_front(root_);
+        bits_.clear();
         bits_.push_front(false);     
+    }
+    else {
+        bits_.push_front(true);
     }
 }
 
