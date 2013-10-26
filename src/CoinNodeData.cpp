@@ -173,12 +173,12 @@ void PartialMerkleTree::setUncompressed(const std::vector<MerkleLeaf>& leaves)
 void PartialMerkleTree::setUncompressed(const std::vector<MerkleLeaf>& leaves, std::size_t begin, std::size_t end, unsigned int depth)
 {
     depth_ = depth;
-
+/*
     std::cout << std::endl << "----Creating PartialMerkleTree----" << std::endl;
     std::cout << "depth: " << depth << std::endl;
     std::cout << "leaves: " << std::endl;
     for (unsigned int i = begin; i < end; i++) { std::cout << leaves[i].first.getHex() << ", " << (leaves[i].second ? "true" : "false") << std::endl; }
-
+*/
     // We've hit a leaf. Store the hash and push a true bit if matched, a false bit if unmatched.
     if (depth == 0) {
         root_ = leaves[begin].first;
@@ -235,12 +235,13 @@ uchar_vector PartialMerkleTree::getFlags() const
     unsigned int byteCounter = 0;
     unsigned char byte = 0;
     for (auto bit: bits_) {
+        //std::cout << "bit: " << (bit ? "true" : "false") << std::endl;
         if (byteCounter == 8) {
             flags.push_back(byte);
             byteCounter = 0;
             byte = 0;            
         }
-        if (bit) byte |= (2 << byteCounter);
+        if (bit) byte |= ((unsigned char)1 << byteCounter);
         byteCounter++;
     }
     flags.push_back(byte);
