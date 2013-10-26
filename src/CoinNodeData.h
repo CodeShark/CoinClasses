@@ -119,7 +119,21 @@ public:
     unsigned int getNTxs() const { return nTxs_; }
     unsigned int getDepth() const { return depth_; }
     const std::list<uchar_vector>& getMerkleHashes() const { return merkleHashes_; }
+    std::vector<uchar_vector> getMerkleHashesVector() const
+    {
+        std::vector<uchar_vector> rval;
+        for (auto& hash: merkleHashes_) { rval.push_back(hash); }
+        return rval;
+    }
+
     const std::list<uchar_vector>& getTxHashes() const { return txHashes_; }
+    std::vector<uchar_vector> getTxHashesVector() const
+    {
+        std::vector<uchar_vector> rval;
+        for (auto& hash: txHashes_) { rval.push_back(hash); }
+        return rval;
+    }
+
     uchar_vector getFlags() const;
 
     const uchar_vector& getRoot() const { return root_; }
