@@ -1,4 +1,4 @@
-#include <CoinNodeData.h>
+#include <MerkleTree.h>
 
 #include <iostream>
 

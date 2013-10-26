@@ -87,7 +87,7 @@ extern uchar_vector g_zero32bytes;
 
 namespace Coin
 {
-	
+/*	
 class MerkleTree
 {
 public:
@@ -152,7 +152,7 @@ private:
     void setCompressed(std::queue<uchar_vector>& hashQueue, std::queue<bool>& bitQueue, unsigned int depth);
     void setUncompressed(const std::vector<MerkleLeaf>& leaves, std::size_t begin, std::size_t end, unsigned int depth);
 };
-
+*/
 class CoinNodeStructure
 {
 public:

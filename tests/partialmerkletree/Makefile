@@ -9,8 +9,7 @@ LIBS = \
     -lboost_regex
 
 OBJ = \
-    $(SRCDIR)/obj/CoinNodeData.o \
-    $(SRCDIR)/obj/IPv6.o
+    $(SRCDIR)/obj/MerkleTree.o
 
 build/partialmerkletree: main.cpp $(OBJ)
 	$(CXX) $(CXXFLAGS)  -o $@ $< $(OBJ) $(INCPATH) $(LIBS)

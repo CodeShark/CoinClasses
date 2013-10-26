@@ -22,9 +22,10 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
 
-#include <CoinNodeData.h>
-#include <numericdata.h>
-#include <Base58Check.h>
+#include "CoinNodeData.h"
+#include "numericdata.h"
+#include "Base58Check.h"
+#include "MerkleTree.h"
 
 // For regular expressions, we can use boost or pcre
 #ifndef COIN_USE_PCRE
@@ -102,6 +103,7 @@ string satoshisToBtcString(uint64_t satoshis, bool trailing_zeros)
     return ss.str();
 }
 
+/*
 ///////////////////////////////////////////////////////////////////////////////
 //
 // class MerkleTree implementation
@@ -131,16 +133,6 @@ uchar_vector MerkleTree::getRoot() const
     }
 
     return tree.getRoot(); // recurse
-}
-
-///////////////////////////////////////////////////////////////////////////////
-//
-// class CoinNodeStructure implementation
-//
-uint32_t CoinNodeStructure::getChecksum() const
-{
-    uchar_vector hash = this->getHash();
-    return vch_to_uint<uint32_t>(uchar_vector(hash.begin(), hash.begin() + 4), _BIG_ENDIAN);
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -259,12 +251,7 @@ void PartialMerkleTree::setUncompressed(const std::vector<MerkleLeaf>& leaves)
 void PartialMerkleTree::setUncompressed(const std::vector<MerkleLeaf>& leaves, std::size_t begin, std::size_t end, unsigned int depth)
 {
     depth_ = depth;
-/*
-    std::cout << std::endl << "----Creating PartialMerkleTree----" << std::endl;
-    std::cout << "depth: " << depth << std::endl;
-    std::cout << "leaves: " << std::endl;
-    for (unsigned int i = begin; i < end; i++) { std::cout << leaves[i].first.getHex() << ", " << (leaves[i].second ? "true" : "false") << std::endl; }
-*/
+
     // We've hit a leaf. Store the hash and push a true bit if matched, a false bit if unmatched.
     if (depth == 0) {
         root_ = leaves[begin].first;
@@ -333,7 +320,17 @@ uchar_vector PartialMerkleTree::getFlags() const
     flags.push_back(byte);
     return flags;
 }
+*/
 
+///////////////////////////////////////////////////////////////////////////////
+//
+// class CoinNodeStructure implementation
+//
+uint32_t CoinNodeStructure::getChecksum() const
+{
+    uchar_vector hash = this->getHash();
+    return vch_to_uint<uint32_t>(uchar_vector(hash.begin(), hash.begin() + 4), _BIG_ENDIAN);
+}
 ///////////////////////////////////////////////////////////////////////////////
 //
 // class VarInt implementation
