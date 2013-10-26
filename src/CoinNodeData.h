@@ -31,6 +31,8 @@
 
 #include "BigInt.h"
 
+#include <list>
+
 #include <stdio.h>
 #include <cstring>
 #include <unistd.h>
@@ -115,9 +117,9 @@ public:
 
     unsigned int nTxs() const { return nTxs_; }
     unsigned int depth() const { return depth_; }
-    const std::vector<uchar_vector>& hashes() const { return hashes_; }
-    uchar_vector flags() const;
-    const std::vector<uchar_vector>& txids() const { return txids_; }
+    const std::list<uchar_vector>& getMerkleHashes() const { return merkleHashes_; }
+    const std::list<uchar_vector>& getTxHashes() const { return txHashes_; }
+    uchar_vector getFlags() const;
 
     const uchar_vector& getRoot() const { return root_; }
     uchar_vector getRootLittleEndian() const { return uchar_vector(root_).getReverse(); }
@@ -125,10 +127,12 @@ public:
 private:
     unsigned int nTxs_;
     unsigned int depth_;
-    std::vector<uchar_vector> hashes_;
-    std::vector<bool> bits_;
-    std::vector<uchar_vector> txids_;
+    std::list<uchar_vector> merkleHashes_;
+    std::list<uchar_vector> txHashes_;
+    std::list<bool> bits_;
     uchar_vector root_;
+
+    void setUncompressed(const std::vector<MerkleLeaf>& leaves, std::size_t begin, std::size_t end, unsigned int depth);
 };
 
 class CoinNodeStructure

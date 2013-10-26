@@ -157,49 +157,84 @@ void PartialMerkleTree::setUncompressed(const std::vector<MerkleLeaf>& leaves)
         throw std::runtime_error("Leaf vector is empty.");
     }
 
-    hashes_.clear();
-    txids_.clear();
+    merkleHashes_.clear();
+    txHashes_.clear();
     bits_.clear();
 
+    // Compute depth = ceiling(log_2(leaves.size()))
+    unsigned int depth = 1;
+    unsigned int n = leaves.size() - 1;
+    while (n > 0) { depth++; n >>= 1; }
+    depth--;
+
+    setUncompressed(leaves, 0, leaves.size(), depth);
+}
+
+void PartialMerkleTree::setUncompressed(const std::vector<MerkleLeaf>& leaves, std::size_t begin, std::size_t end, unsigned int depth)
+{
+    depth_ = depth;
+
     // We've hit a leaf. Store the hash and push a true bit if matched, a false bit if unmatched.
-    if (leaves.size() == 1) {
-        hashes_.push_back(leaves[0].first);
-        if (leaves[0].second) txids_.push_back(leaves[0].first);
-        bits_.push_back(leaves[0].second);
+    if (depth == 0) {
+        root_ = leaves[begin].first;
+        merkleHashes_.push_back(leaves[begin].first);
+        if (leaves[begin].second) txHashes_.push_back(leaves[begin].first);
+        bits_.push_back(leaves[begin].second);
         return;
     }
 
-    std::vector<unsigned int> matchedLeafIndices;
+    depth--; // Descend a level
 
-    MerkleTree merkleTree;
-    for (unsigned int i = 0; i < leaves.size(); i++) {
-        merkleTree.addNode(leaves[i].first);
-        if (leaves[i].second) matchedLeafIndices.push_back(i);
+    // For a full tree, each subtree should have 2^depth leaves. The total number of leaves is end - begin.
+    // We want to partition the leaves into a left set that contains 2^depth elemments
+    // and a right set with the remainder. If we have 2^depth or fewer total leaves, we need to duplicate
+    // the subtree merkle hash to compute the merkle hash but we only include the hashes, txids, and bits one time.
+    std::size_t partitionPos = std::min((std::size_t)2 << depth, end - begin);
+    PartialMerkleTree leftSubtree;
+    leftSubtree.setUncompressed(leaves, begin, begin + partitionPos, depth);
+
+    merkleHashes_.swap(leftSubtree.merkleHashes_);
+    txHashes_.swap(leftSubtree.txHashes_);
+    bits_.swap(leftSubtree.bits_);
+
+    if (begin + partitionPos < end) {
+        PartialMerkleTree rightSubtree;
+        rightSubtree.setUncompressed(leaves, begin + partitionPos, end, depth);
+
+        root_ = sha256_2(leftSubtree.root_ + rightSubtree.root_);
+
+        merkleHashes_.splice(merkleHashes_.end(), rightSubtree.merkleHashes_);
+        txHashes_.splice(txHashes_.end(), rightSubtree.txHashes_);
+        bits_.splice(bits_.end(), rightSubtree.bits_);
     }
-    root_ = merkleTree.getRoot();
-    nTxs_ = leaves.size();
-
-    if (matchedLeafIndices.empty()) {
-        depth_ = 0;
-        hashes_.push_back(root_);
-        flags_.push_back(0x00);
-        return;
+    else {
+        root_ = sha256_2(leftSubtree.root_ + leftSubtree.root_);
     }
 
+    if (txHashes_.empty()) {
+        // No matched leaves in subtree, so prepend the root to hashes and a false to bits
+        merkleHashes_.push_front(root_);
+        bits_.push_front(false);     
+    }
+}
 
-    // We are on a path to a matched leaf, so push a true bit and recurse
-    bits_.push_back(true);
+uchar_vector PartialMerkleTree::getFlags() const
+{
+    uchar_vector flags;
 
-/*
-    depth_ = 1;
-    unsigned int n = nTxs_ - 1;
-    while (n > 0) { depth_++; n >> 1; }
-    depth_--; // height_ = ceil(log_2(nTxs_))
-*/
-
-    // Partition the leaves into a set that's a size a power of two and the remaining
-
-    PartialMerkleTree partialMerkleTree(MerkleLeaves(
+    unsigned int byteCounter = 0;
+    unsigned char byte = 0;
+    for (auto bit: bits_) {
+        if (byteCounter == 8) {
+            flags.push_back(byte);
+            byteCounter = 0;
+            byte = 0;            
+        }
+        if (bit) byte |= (2 << byteCounter);
+        byteCounter++;
+    }
+    flags.push_back(byte);
+    return flags;
 }
 
 ///////////////////////////////////////////////////////////////////////////////
