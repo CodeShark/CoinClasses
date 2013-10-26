@@ -32,6 +32,7 @@
 #include "BigInt.h"
 
 #include <list>
+#include <queue>
 
 #include <stdio.h>
 #include <cstring>
@@ -109,20 +110,22 @@ public:
     typedef std::pair<uchar_vector, bool> MerkleLeaf;
 
     PartialMerkleTree() { }
-    PartialMerkleTree(const std::vector<uchar_vector>& hashes, const uchar_vector& flags) { setCompressed(hashes, flags); }
+    PartialMerkleTree(unsigned int nTxs, const std::vector<uchar_vector>& hashes, const uchar_vector& flags) { setCompressed(nTxs, hashes, flags); }
     PartialMerkleTree(const std::vector<MerkleLeaf>& leaves) { setUncompressed(leaves); }
 
-    void setCompressed(const std::vector<uchar_vector>& hashes, const uchar_vector& flags);
+    void setCompressed(unsigned int nTxs, const std::vector<uchar_vector>& hashes, const uchar_vector& flags);
     void setUncompressed(const std::vector<MerkleLeaf>& leaves);
 
-    unsigned int nTxs() const { return nTxs_; }
-    unsigned int depth() const { return depth_; }
+    unsigned int getNTxs() const { return nTxs_; }
+    unsigned int getDepth() const { return depth_; }
     const std::list<uchar_vector>& getMerkleHashes() const { return merkleHashes_; }
     const std::list<uchar_vector>& getTxHashes() const { return txHashes_; }
     uchar_vector getFlags() const;
 
     const uchar_vector& getRoot() const { return root_; }
     uchar_vector getRootLittleEndian() const { return uchar_vector(root_).getReverse(); }
+
+    std::string toIndentedString() const;
 
 private:
     unsigned int nTxs_;
@@ -132,6 +135,7 @@ private:
     std::list<bool> bits_;
     uchar_vector root_;
 
+    void setCompressed(std::queue<uchar_vector>& hashQueue, std::queue<bool>& bitQueue, unsigned int depth);
     void setUncompressed(const std::vector<MerkleLeaf>& leaves, std::size_t begin, std::size_t end, unsigned int depth);
 };
 

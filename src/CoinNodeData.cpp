@@ -147,8 +147,93 @@ uint32_t CoinNodeStructure::getChecksum() const
 //
 // class PartialMerkleTree implementation
 //
-void PartialMerkleTree::setCompressed(const std::vector<uchar_vector>& hashes, const uchar_vector& flags)
+std::string PartialMerkleTree::toIndentedString() const
 {
+    std::stringstream ss;
+    ss << "root: " << uchar_vector(root_).getReverse().getHex() << std::endl;
+    ss << "nTxs: " << nTxs_ << std::endl;
+    ss << "merkleHashes: " << endl;
+    unsigned int i = 0;
+    for (auto& hash: merkleHashes_) {
+        ss << "  " << i++ << ": " << uchar_vector(hash).getReverse().getHex() << endl; 
+    }
+
+    ss << "txHashes: " << endl;
+    i = 0;
+    for (auto& hash: txHashes_) {
+        ss << "  " << i++ << ": " << uchar_vector(hash).getReverse().getHex() << endl;
+    }
+
+    ss << "flags: " << getFlags().getHex() << endl;
+    return ss.str();
+}
+
+void PartialMerkleTree::setCompressed(unsigned int nTxs, const std::vector<uchar_vector>& hashes, const uchar_vector& flags)
+{
+    if (nTxs == 0) {
+        throw std::runtime_error("Transaction count is zero.");
+    }
+
+    // Compute depth = ceiling(log_2(leaves.size()))
+    nTxs_ = nTxs;
+    unsigned int depth = 1;
+    unsigned int n = nTxs_ - 1;
+    while (n > 0) { depth++; n >>= 1; }
+    depth--;
+
+    std::queue<uchar_vector> hashQueue;
+    merkleHashes_.clear();
+    for (auto& hash: hashes) { merkleHashes_.push_back(hash); hashQueue.push(hash); }
+    txHashes_.clear();
+    bits_.clear();
+
+    std::queue<bool> bitQueue; 
+    for (auto& flag: flags) {
+        for (unsigned int i = 0; i < 8; i++) {
+            bool bit = ((flag >> i) & (unsigned char)0x01);
+            bits_.push_back(bit);
+            bitQueue.push(bit);
+        }
+    }
+
+    setCompressed(hashQueue, bitQueue, depth);
+}
+
+void PartialMerkleTree::setCompressed(std::queue<uchar_vector>& hashQueue, std::queue<bool>& bitQueue, unsigned int depth)
+{
+    depth_ = depth;
+
+    bool bit = bitQueue.front();
+    bitQueue.pop();
+
+    // We've reached a leaf of the partial merkle tree
+    if (depth == 0 || !bit) {
+        root_ = hashQueue.front();
+        if (bit) txHashes_.push_back(hashQueue.front());
+        hashQueue.pop();
+        return;
+    }
+
+    depth--;
+
+    // we're not at a leaf and bit is set so recurse
+    PartialMerkleTree leftSubtree;
+    leftSubtree.setCompressed(hashQueue, bitQueue, depth);
+
+    txHashes_.swap(leftSubtree.txHashes_);
+
+    if (!hashQueue.empty()) {
+        // A right subtree also exists, so find it
+        PartialMerkleTree rightSubtree;
+        rightSubtree.setCompressed(hashQueue, bitQueue, depth);
+
+        root_ = sha256_2(leftSubtree.root_ + rightSubtree.root_);
+        txHashes_.splice(txHashes_.end(), rightSubtree.txHashes_);
+    }
+    else {
+        // There's no right subtree - copy over this node's hash
+        root_ = sha256_2(leftSubtree.root_ + leftSubtree.root_);
+    }
 }
 
 void PartialMerkleTree::setUncompressed(const std::vector<MerkleLeaf>& leaves)
@@ -157,13 +242,14 @@ void PartialMerkleTree::setUncompressed(const std::vector<MerkleLeaf>& leaves)
         throw std::runtime_error("Leaf vector is empty.");
     }
 
+    nTxs_ = leaves.size();
     merkleHashes_.clear();
     txHashes_.clear();
     bits_.clear();
 
     // Compute depth = ceiling(log_2(leaves.size()))
     unsigned int depth = 1;
-    unsigned int n = leaves.size() - 1;
+    unsigned int n = nTxs_ - 1;
     while (n > 0) { depth++; n >>= 1; }
     depth--;
 
