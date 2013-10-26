@@ -174,6 +174,11 @@ void PartialMerkleTree::setUncompressed(const std::vector<MerkleLeaf>& leaves, s
 {
     depth_ = depth;
 
+    std::cout << std::endl << "----Creating PartialMerkleTree----" << std::endl;
+    std::cout << "depth: " << depth << std::endl;
+    std::cout << "leaves: " << std::endl;
+    for (unsigned int i = begin; i < end; i++) { std::cout << leaves[i].first.getHex() << ", " << (leaves[i].second ? "true" : "false") << std::endl; }
+
     // We've hit a leaf. Store the hash and push a true bit if matched, a false bit if unmatched.
     if (depth == 0) {
         root_ = leaves[begin].first;
@@ -189,7 +194,7 @@ void PartialMerkleTree::setUncompressed(const std::vector<MerkleLeaf>& leaves, s
     // We want to partition the leaves into a left set that contains 2^depth elemments
     // and a right set with the remainder. If we have 2^depth or fewer total leaves, we need to duplicate
     // the subtree merkle hash to compute the merkle hash but we only include the hashes, txids, and bits one time.
-    std::size_t partitionPos = std::min((std::size_t)2 << depth, end - begin);
+    std::size_t partitionPos = std::min((std::size_t)1 << depth, end - begin);
     PartialMerkleTree leftSubtree;
     leftSubtree.setUncompressed(leaves, begin, begin + partitionPos, depth);
 

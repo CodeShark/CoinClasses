@@ -25,6 +25,10 @@ int main()
     unsigned int i = 0;
     for (auto& hash: tree.getMerkleHashes()) { cout << "  " << i++ << ": " << uchar_vector(hash).getReverse().getHex() << endl; }
 
+    cout << "txids:" << endl;
+    i = 0;
+    for (auto& hash: tree.getTxHashes()) { cout << "  " << i++ << ": " << uchar_vector(hash).getReverse().getHex() << endl; }
+
     cout << "flags: " << tree.getFlags().getHex() << endl;
  
     return 0;
